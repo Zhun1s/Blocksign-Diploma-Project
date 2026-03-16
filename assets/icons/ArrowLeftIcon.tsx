@@ -1,15 +1,10 @@
 import * as React from "react";
-import Svg, { Path } from "react-native-svg";
-const ArrowLeftIcon = (props) => (
-  <Svg
-    xmlns="http://www.w3.org/2000/svg"
-    width={24}
-    height={24}
-    fill="none"
-    {...props}
-  >
+import Svg, { Path, SvgProps } from "react-native-svg";
+
+const ArrowLeftIcon = ({ color = "#000", ...props }: SvgProps) => (
+  <Svg width={24} height={24} fill="none" {...props}>
     <Path
-      stroke="#000"
+      stroke={color}
       strokeLinecap="round"
       strokeLinejoin="round"
       strokeWidth={2}

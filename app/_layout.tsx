@@ -4,6 +4,7 @@ export default function RootLayout() {
   return (
     <Stack>
       <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+      <Stack.Screen name="join" options={{ headerShown: false }} />
     </Stack>
   );
 }

@@ -1,7 +1,7 @@
+import ArrowLeftIcon from "@/assets/icons/ArrowLeftIcon";
 import ProjectsbyOwner, {
   splitProjectsByMembership,
 } from "@/components/projectsrow";
-import { Separator } from "@/components/separator";
 import { GlassView } from "expo-glass-effect";
 import { router } from "expo-router";
 import { useState } from "react";
@@ -119,18 +119,22 @@ export default function Projects() {
                   setIsMenuOpen(false);
                   console.warn("Create project action is not implemented yet");
                 }}
-                style={styles.menuItem}
+                style={[
+                  styles.menuItem,
+                  { borderBottomWidth: 0.5, borderBottomColor: "#E5E5E5" },
+                ]}
               >
+                <ArrowLeftIcon />
                 <Text style={styles.menuItemText}>Create project</Text>
               </Pressable>
-              <Separator />
               <Pressable
                 onPress={() => {
                   setIsMenuOpen(false);
-                  console.warn("Join project action is not implemented yet");
+                  router.push("/join");
                 }}
                 style={styles.menuItem}
               >
+                <ArrowLeftIcon />
                 <Text style={styles.menuItemText}>Join project</Text>
               </Pressable>
             </View>
@@ -202,29 +206,43 @@ const styles = StyleSheet.create({
   },
 
   menuBackdrop: {
-    ...StyleSheet.absoluteFillObject,
+    position: "absolute",
+    top: -400,
+    left: -16,
+    right: -16,
+    bottom: -400,
+    backgroundColor: "rgba(0, 0, 0, 0.35)",
     zIndex: 10,
   },
 
   menuCard: {
     position: "absolute",
-    top: 58,
+    top: 64,
     right: 0,
     backgroundColor: "#FFFFFF",
     borderRadius: 16,
     paddingVertical: 8,
+    paddingHorizontal: 16,
     minWidth: 170,
     zIndex: 11,
+    shadowColor: "#000000",
+    shadowOffset: { width: 1, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 4,
+    elevation: 4,
   },
 
   menuItem: {
-    paddingHorizontal: 16,
+    display: "flex",
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
     paddingVertical: 12,
   },
 
   menuItemText: {
     fontSize: 15,
-    fontWeight: "500",
+    fontWeight: "600",
   },
 
   searchContainer: {
