@@ -15,71 +15,61 @@ import {
   View,
 } from "react-native";
 import { TasksByProjectSection } from "../../components/taskrow";
+import { getProjects, getTasks, type Project, type Task } from "@/services/api";
 
-type Task = {
+type TaskRow = {
   id: string;
   title: string;
   description?: string;
   deadline?: string;
   important?: boolean;
-  projectId: string;
 };
-type Project = { id: string; name: string };
 
-const mockProjects: Project[] = [
-  { id: "p1", name: "My App" },
-  { id: "p2", name: "University" },
-  { id: "p3", name: "Tleu Agency" },
-];
+type Section = {
+  title: string;
+  data: TaskRow[];
+};
 
-const mockTasks: Task[] = [
-  {
-    id: "t1",
-    title: "Make design",
-    description: "No description",
-    projectId: "p1",
-    deadline: "Today",
-    important: true,
-  },
-  {
-    id: "t2",
-    title: "Home layout",
-    description: "No description",
-    projectId: "p1",
-    deadline: "Today",
-  },
-  {
-    id: "t3",
-    title: "Write report",
-    description: "No description",
-    projectId: "p2",
-    deadline: "Today",
-  },
-  {
-    id: "t4",
-    title: "Write report",
-    description: "No description",
-    projectId: "p3",
-    deadline: "Today",
-  },
-];
+function formatDeadline(deadline: string | null): string | undefined {
+  if (!deadline) return undefined;
+  const d = new Date(deadline);
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const tomorrow = new Date(today);
+  tomorrow.setDate(tomorrow.getDate() + 1);
 
-function buildSections(tasks: Task[], projects: Project[]) {
-  const namedById = Object.fromEntries(projects.map((p) => [p.id, p.name]));
-  const grouped: Record<string, Task[]> = {};
+  if (d.toDateString() === today.toDateString()) return "Today";
+  if (d.toDateString() === tomorrow.toDateString()) return "Tomorrow";
+  return d.toLocaleDateString("en-US", {
+    day: "numeric",
+    month: "short",
+  });
+}
 
-  for (const t of tasks) (grouped[t.projectId] ??= []).push(t);
+async function buildSections(): Promise<Section[]> {
+  const projects = await getProjects();
+  const sections: Section[] = [];
 
-  return Object.entries(grouped).map(([projectId, projectTasks]) => ({
-    title: namedById[projectId] ?? "Unknown Project",
-    data: projectTasks.map((t) => ({
-      id: t.id,
-      title: t.title,
-      description: t.description,
-      deadline: t.deadline,
-      important: t.important,
-    })),
-  }));
+  for (const p of projects) {
+    try {
+      const tasks = await getTasks(p.id);
+      if (tasks.length > 0) {
+        sections.push({
+          title: p.name,
+          data: tasks.map((t) => ({
+            id: String(t.id),
+            title: t.title,
+            description: t.description || undefined,
+            deadline: formatDeadline(t.deadline),
+            important: t.important,
+          })),
+        });
+      }
+    } catch {
+      // skip projects where user has no NDA access
+    }
+  }
+  return sections;
 }
 
 function startOfWeekMonday(date: Date) {
@@ -177,7 +167,7 @@ export default function Tab() {
     });
   }, [now]);
 
-  const [sections, setSections] = useState<any[]>([]);
+  const [sections, setSections] = useState<Section[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -185,8 +175,8 @@ export default function Tab() {
     try {
       setError(null);
       setLoading(true);
-      await new Promise((r) => setTimeout(r, 400));
-      setSections(buildSections(mockTasks, mockProjects));
+      const data = await buildSections();
+      setSections(data);
     } catch (e: any) {
       setError(e.message ?? "Unknown error");
     } finally {
@@ -230,7 +220,7 @@ export default function Tab() {
         <TasksByProjectSection
           sections={sections}
           onRefresh={load}
-          onTaskPress={(task: { id: any }) => console.log("open", task.id)}
+          onTaskPress={() => {}}
           setError={setError}
           setLoading={setLoading}
         />

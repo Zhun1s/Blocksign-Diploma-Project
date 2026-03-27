@@ -1,5 +1,6 @@
 import ArrowLeftIcon from "@/assets/icons/ArrowLeftIcon";
 import ArrowRightIcon from "@/assets/icons/ArrowRightIcon";
+import { useAuth } from "@/contexts/AuthContext";
 import { Image } from "expo-image";
 import { router } from "expo-router";
 import {
@@ -11,17 +12,59 @@ import {
   View,
 } from "react-native";
 
+function SettingRow({
+  label,
+  onPress,
+  border = true,
+}: {
+  label: string;
+  onPress: () => void;
+  border?: boolean;
+}) {
+  return (
+    <Pressable
+      onPress={onPress}
+      style={({ pressed }) => [
+        styles.settingItem,
+        border && styles.settingItemBorder,
+        pressed && styles.settingItemHover,
+      ]}
+    >
+      <View style={styles.settingRow}>
+        <ArrowLeftIcon />
+        <Text style={styles.settingText}>{label}</Text>
+      </View>
+      <ArrowRightIcon />
+    </Pressable>
+  );
+}
+
 export default function Profile() {
+  const { user, logout } = useAuth();
+
   const onExitPress = () => {
     Alert.alert("Exit account", "Are you sure you want to exit?", [
       { text: "Cancel", style: "cancel" },
       {
         text: "Exit",
         style: "destructive",
-        onPress: () => router.replace("/welcome"),
+        onPress: async () => {
+          await logout();
+          router.replace("/welcome");
+        },
       },
     ]);
   };
+
+  const showPersonalInfo = () => {
+    router.push("/personal-info");
+  };
+
+  const comingSoon = (feature: string) => {
+    Alert.alert(feature, "This feature is coming soon.");
+  };
+
+  const initial = user?.fullName?.charAt(0)?.toUpperCase() || "?";
 
   return (
     <ScrollView showsVerticalScrollIndicator={false} style={styles.background}>
@@ -37,159 +80,42 @@ export default function Profile() {
           </Pressable>
         </View>
         <View style={styles.profileData}>
-          <View style={styles.profileAvatar}></View>
-          <Text style={styles.profileName}>John Doe</Text>
-          <Text style={styles.profileEmail}>john.doe@example.com</Text>
+          <View style={styles.profileAvatar}>
+            <Text style={styles.avatarText}>{initial}</Text>
+          </View>
+          <Text style={styles.profileName}>{user?.fullName || "User"}</Text>
+          <Text style={styles.profileEmail}>{user?.email || ""}</Text>
         </View>
-        <Text
-          style={{
-            marginTop: 32,
-            marginLeft: 16,
-            fontSize: 14,
-            fontWeight: "600",
-            color: "#6E6E6E",
-          }}
-        >
-          General
-        </Text>
+
+        <Text style={styles.sectionLabel}>General</Text>
         <View style={styles.settingsContainer}>
-          <Pressable
-            onPress={() => undefined}
-            style={({ hovered, pressed }) => [
-              styles.settingItem,
-              styles.settingItemBorder,
-              (hovered || pressed) && styles.settingItemHover,
-            ]}
-          >
-            <View
-              style={{
-                display: "flex",
-                flexDirection: "row",
-                alignItems: "center",
-                gap: 8,
-              }}
-            >
-              <ArrowLeftIcon />
-              <Text style={styles.settingText}>Personal Info</Text>
-            </View>
-            <ArrowRightIcon />
-          </Pressable>
-          <Pressable
-            onPress={() => undefined}
-            style={({ hovered, pressed }) => [
-              styles.settingItem,
-              styles.settingItemBorder,
-              (hovered || pressed) && styles.settingItemHover,
-            ]}
-          >
-            <View
-              style={{
-                display: "flex",
-                flexDirection: "row",
-                alignItems: "center",
-                gap: 8,
-              }}
-            >
-              <ArrowLeftIcon />
-              <Text style={styles.settingText}>Language</Text>
-            </View>
-            <ArrowRightIcon />
-          </Pressable>
-          <Pressable
-            onPress={() => undefined}
-            style={({ hovered, pressed }) => [
-              styles.settingItem,
-              (hovered || pressed) && styles.settingItemHover,
-            ]}
-          >
-            <View
-              style={{
-                display: "flex",
-                flexDirection: "row",
-                alignItems: "center",
-                gap: 8,
-              }}
-            >
-              <ArrowLeftIcon />
-              <Text style={styles.settingText}>Mode</Text>
-            </View>
-            <ArrowRightIcon />
-          </Pressable>
+          <SettingRow label="Personal Info" onPress={showPersonalInfo} />
+          <SettingRow
+            label="Language"
+            onPress={() => comingSoon("Language")}
+          />
+          <SettingRow
+            label="Mode"
+            onPress={() => comingSoon("Mode")}
+            border={false}
+          />
         </View>
-        <Text
-          style={{
-            marginTop: 32,
-            marginLeft: 16,
-            fontSize: 14,
-            fontWeight: "600",
-            color: "#6E6E6E",
-          }}
-        >
-          Content & Activity
-        </Text>
+
+        <Text style={styles.sectionLabel}>Content & Activity</Text>
         <View style={styles.settingsContainer}>
-          <Pressable
-            onPress={() => undefined}
-            style={({ hovered, pressed }) => [
-              styles.settingItem,
-              styles.settingItemBorder,
-              (hovered || pressed) && styles.settingItemHover,
-            ]}
-          >
-            <View
-              style={{
-                display: "flex",
-                flexDirection: "row",
-                alignItems: "center",
-                gap: 8,
-              }}
-            >
-              <ArrowLeftIcon />
-              <Text style={styles.settingText}>Notifications</Text>
-            </View>
-            <ArrowRightIcon />
-          </Pressable>
-          <Pressable
-            onPress={() => undefined}
-            style={({ hovered, pressed }) => [
-              styles.settingItem,
-              styles.settingItemBorder,
-              (hovered || pressed) && styles.settingItemHover,
-            ]}
-          >
-            <View
-              style={{
-                display: "flex",
-                flexDirection: "row",
-                alignItems: "center",
-                gap: 8,
-              }}
-            >
-              <ArrowLeftIcon />
-              <Text style={styles.settingText}>Feedback</Text>
-            </View>
-            <ArrowRightIcon />
-          </Pressable>
-          <Pressable
-            onPress={() => undefined}
-            style={({ hovered, pressed }) => [
-              styles.settingItem,
-              (hovered || pressed) && styles.settingItemHover,
-            ]}
-          >
-            <View
-              style={{
-                display: "flex",
-                flexDirection: "row",
-                alignItems: "center",
-                gap: 8,
-              }}
-            >
-              <ArrowLeftIcon />
-              <Text style={styles.settingText}>Account Settings</Text>
-            </View>
-            <ArrowRightIcon />
-          </Pressable>
+          <SettingRow
+            label="Notifications"
+            onPress={() => comingSoon("Notifications")}
+          />
+          <SettingRow
+            label="Feedback"
+            onPress={() => comingSoon("Feedback")}
+          />
+          <SettingRow
+            label="Account Settings"
+            onPress={() => comingSoon("Account Settings")}
+            border={false}
+          />
         </View>
       </View>
     </ScrollView>
@@ -202,51 +128,54 @@ const styles = StyleSheet.create({
     backgroundColor: "#F2F2F2",
   },
   container: {
-    fontFamily: "Inter",
     flex: 1,
     marginTop: 32,
     marginHorizontal: 16,
   },
-
   headerRow: {
-    display: "flex",
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
   },
-
   logo: {
     width: 100,
     height: 40,
   },
-
   profileData: {
-    display: "flex",
     alignItems: "center",
     marginTop: 32,
   },
-
   profileAvatar: {
     width: 120,
     height: 120,
     borderRadius: 60,
     backgroundColor: "#DEDEDE",
+    alignItems: "center",
+    justifyContent: "center",
   },
-
+  avatarText: {
+    fontSize: 48,
+    fontWeight: "700",
+    color: "#888",
+  },
   profileName: {
     fontSize: 20,
     fontWeight: "bold",
     marginTop: 16,
   },
-
   profileEmail: {
     fontSize: 16,
     color: "#616161",
     marginTop: 8,
   },
-
+  sectionLabel: {
+    marginTop: 32,
+    marginLeft: 16,
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#6E6E6E",
+  },
   settingsContainer: {
-    display: "flex",
     flexDirection: "column",
     marginTop: 16,
     backgroundColor: "#FFFFFF",
@@ -260,22 +189,23 @@ const styles = StyleSheet.create({
     elevation: 4,
   },
   settingItem: {
-    display: "flex",
     flexDirection: "row",
     justifyContent: "space-between",
     paddingVertical: 16,
     paddingHorizontal: 8,
   },
-
   settingItemBorder: {
     borderBottomWidth: 0.5,
     borderBottomColor: "#E5E5E5",
   },
-
   settingItemHover: {
     backgroundColor: "#F5F5F5",
   },
-
+  settingRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
   settingText: {
     fontSize: 16,
     fontWeight: "600",

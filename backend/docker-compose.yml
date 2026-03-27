@@ -17,13 +17,10 @@ services:
     build: .
     ports:
       - "8000:8000"
+    env_file:
+      - .env
     environment:
       DATABASE_URL: postgresql+asyncpg://diploma:diploma@db:5432/diploma
-      SECRET_KEY: test-secret-key-for-dev
-      PINATA_API_KEY: ""
-      PINATA_SECRET_KEY: ""
-      CONTRACT_ADDRESS: ""
-      WALLET_PRIVATE_KEY: ""
       PYTHONPATH: /app
     depends_on:
       db:

@@ -1,4 +1,5 @@
 import ArrowLeftIcon from "@/assets/icons/ArrowLeftIcon";
+import { getNdaAccess } from "@/services/api";
 import {
   BarcodeScanningResult,
   CameraView,
@@ -7,18 +8,64 @@ import {
 import { GlassView } from "expo-glass-effect";
 import { router } from "expo-router";
 import { useState } from "react";
-import { Button, Pressable, StyleSheet, Text, View } from "react-native";
+import { Alert, Button, Pressable, StyleSheet, Text, View } from "react-native";
 
 export default function Join() {
   const [permission, requestPermission] = useCameraPermissions();
 
   const [scanned, setScanned] = useState(false);
+  const [scannedData, setScannedData] = useState<{
+    projectId: string;
+    projectName: string;
+    token: string;
+  } | null>(null);
   const [selectedLens, setSelectedLens] = useState("builtInWideAngleCamera");
 
-  const handleBarcodeScanned = ({ type, data }: BarcodeScanningResult) => {
+  const handleBarcodeScanned = ({ data }: BarcodeScanningResult) => {
     if (scanned) return;
-    console.log("[Barcode] scanned", { type, data });
     setScanned(true);
+
+    try {
+      const parsed = JSON.parse(data);
+      if (parsed.type === "project-invite" && parsed.token && parsed.projectId) {
+        setScannedData({
+          projectId: parsed.projectId,
+          projectName: parsed.projectName || "Project",
+          token: parsed.token,
+        });
+      } else {
+        Alert.alert("Invalid QR", "This QR code is not a valid project invite.");
+        setScanned(false);
+      }
+    } catch {
+      Alert.alert("Invalid QR", "Could not read QR code data.");
+      setScanned(false);
+    }
+  };
+
+  const handleContinue = async () => {
+    if (!scannedData) return;
+    try {
+      const nda = await getNdaAccess(
+        Number(scannedData.projectId),
+        scannedData.token,
+      );
+      Alert.alert(
+        "NDA Required",
+        `Project: ${nda.project_name}\n\nYou need to sign the NDA to join this project.`,
+        [
+          { text: "Cancel", style: "cancel", onPress: () => router.back() },
+          {
+            text: "OK",
+            onPress: () => router.back(),
+          },
+        ],
+      );
+    } catch (e: any) {
+      Alert.alert("Error", e.message || "Failed to access project invite");
+      setScanned(false);
+      setScannedData(null);
+    }
   };
 
   const handleAvailableLensesChanged = ({ lenses }: { lenses: string[] }) => {
@@ -41,12 +88,10 @@ export default function Join() {
   };
 
   if (!permission) {
-    // Camera permissions are still loading.
     return <View />;
   }
 
   if (!permission.granted) {
-    // Camera permissions are not granted yet.
     return (
       <View style={styles.container}>
         <Text style={styles.message}>
@@ -82,13 +127,15 @@ export default function Join() {
       </View>
       <View style={styles.cameraText}>
         <Text style={styles.text}>
-          Please make sure that QR-code is seen good enough
+          {scannedData
+            ? `Project: ${scannedData.projectName}`
+            : "Please make sure that QR-code is seen good enough"}
         </Text>
       </View>
-      {scanned && (
-        <View style={styles.continueButton}>
+      {scanned && scannedData && (
+        <Pressable onPress={handleContinue} style={styles.continueButton}>
           <Text style={{ fontWeight: "600", fontSize: 16 }}>Continue</Text>
-        </View>
+        </Pressable>
       )}
     </View>
   );

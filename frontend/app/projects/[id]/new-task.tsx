@@ -1,21 +1,25 @@
 import ArrowLeftIcon from "@/assets/icons/ArrowLeftIcon";
+import { createTask } from "@/services/api";
 import DateTimePicker, {
-    DateTimePickerEvent,
+  DateTimePickerEvent,
 } from "@react-native-community/datetimepicker";
 import { router, Stack, useLocalSearchParams } from "expo-router";
 import { useState } from "react";
 import {
-    Platform,
-    Pressable,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    View,
+  ActivityIndicator,
+  Alert,
+  Platform,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
 } from "react-native";
 
 export default function NewTaskScreen() {
   const { id, name } = useLocalSearchParams<{ id?: string; name?: string }>();
+  const projectId = Number(id);
   const projectName = name ? `${name}` : "Project";
 
   const [title, setTitle] = useState("");
@@ -23,6 +27,7 @@ export default function NewTaskScreen() {
   const [deadlineDate, setDeadlineDate] = useState<Date | null>(null);
   const [showDeadlinePicker, setShowDeadlinePicker] = useState(false);
   const [important, setImportant] = useState(false);
+  const [loading, setLoading] = useState(false);
 
   const deadlineLabel = deadlineDate
     ? deadlineDate.toLocaleDateString("en-GB", {
@@ -45,16 +50,26 @@ export default function NewTaskScreen() {
     }
   };
 
-  const onCreateTask = () => {
-    console.log("Create task", {
-      projectId: id,
-      projectName,
-      title,
-      description,
-      deadline: deadlineLabel,
-      important,
-    });
-    router.back();
+  const onCreateTask = async () => {
+    if (!title) {
+      Alert.alert("Error", "Task title is required");
+      return;
+    }
+    setLoading(true);
+    try {
+      await createTask(projectId, {
+        title,
+        description: description || undefined,
+        status: "not_started",
+        important,
+        deadline: deadlineDate ? deadlineDate.toISOString() : undefined,
+      });
+      router.back();
+    } catch (e: any) {
+      Alert.alert("Error", e.message || "Failed to create task");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -148,12 +163,17 @@ export default function NewTaskScreen() {
 
           <Pressable
             onPress={onCreateTask}
+            disabled={loading}
             style={({ pressed }) => [
               styles.createButton,
               pressed && styles.createButtonPressed,
             ]}
           >
-            <Text style={styles.createButtonText}>Create Task</Text>
+            {loading ? (
+              <ActivityIndicator color="#FFFFFF" />
+            ) : (
+              <Text style={styles.createButtonText}>Create Task</Text>
+            )}
           </Pressable>
         </View>
       </ScrollView>

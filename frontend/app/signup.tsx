@@ -1,27 +1,39 @@
 import ArrowLeftIcon from "@/assets/icons/ArrowLeftIcon";
+import { useAuth } from "@/contexts/AuthContext";
 import { router, Stack } from "expo-router";
 import { useState } from "react";
 import {
-    Pressable,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    View,
+  ActivityIndicator,
+  Alert,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
 } from "react-native";
 
 export default function SignupScreen() {
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [loading, setLoading] = useState(false);
+  const { register } = useAuth();
 
-  const onSignup = () => {
-    console.log("Sign up", {
-      fullName,
-      email,
-      passwordLength: password.length,
-    });
-    router.replace("/(tabs)");
+  const onSignup = async () => {
+    if (!fullName || !email || !password) {
+      Alert.alert("Error", "Please fill in all fields");
+      return;
+    }
+    setLoading(true);
+    try {
+      await register(email, password, fullName);
+      router.replace("/(tabs)");
+    } catch (e: any) {
+      Alert.alert("Registration failed", e.message || "Try again");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -74,12 +86,17 @@ export default function SignupScreen() {
 
           <Pressable
             onPress={onSignup}
+            disabled={loading}
             style={({ pressed }) => [
               styles.primaryButton,
               pressed && styles.pressed,
             ]}
           >
-            <Text style={styles.primaryButtonText}>Create Account</Text>
+            {loading ? (
+              <ActivityIndicator color="#FFFFFF" />
+            ) : (
+              <Text style={styles.primaryButtonText}>Create Account</Text>
+            )}
           </Pressable>
 
           <Pressable

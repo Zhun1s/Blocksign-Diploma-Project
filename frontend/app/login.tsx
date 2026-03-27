@@ -1,22 +1,38 @@
 import ArrowLeftIcon from "@/assets/icons/ArrowLeftIcon";
+import { useAuth } from "@/contexts/AuthContext";
 import { router, Stack } from "expo-router";
 import { useState } from "react";
 import {
-    Pressable,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    View,
+  ActivityIndicator,
+  Alert,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
 } from "react-native";
 
 export default function LoginScreen() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [loading, setLoading] = useState(false);
+  const { login } = useAuth();
 
-  const onLogin = () => {
-    console.log("Login", { email, passwordLength: password.length });
-    router.replace("/(tabs)");
+  const onLogin = async () => {
+    if (!email || !password) {
+      Alert.alert("Error", "Please fill in all fields");
+      return;
+    }
+    setLoading(true);
+    try {
+      await login(email, password);
+      router.replace("/(tabs)");
+    } catch (e: any) {
+      Alert.alert("Login failed", e.message || "Check your credentials");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -60,12 +76,17 @@ export default function LoginScreen() {
 
           <Pressable
             onPress={onLogin}
+            disabled={loading}
             style={({ pressed }) => [
               styles.primaryButton,
               pressed && styles.pressed,
             ]}
           >
-            <Text style={styles.primaryButtonText}>Continue</Text>
+            {loading ? (
+              <ActivityIndicator color="#FFFFFF" />
+            ) : (
+              <Text style={styles.primaryButtonText}>Continue</Text>
+            )}
           </Pressable>
 
           <Pressable

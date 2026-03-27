@@ -3,11 +3,22 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
+from app.dependencies import get_current_user
 from app.models.user import User
 from app.schemas.user import UserRegister, UserLogin, UserOut, Token
 from app.services.auth import hash_password, verify_password, create_access_token
 
 router = APIRouter(prefix="/users", tags=["Users"])
+
+
+@router.get(
+    "/me",
+    response_model=UserOut,
+    summary="Текущий пользователь",
+    description="Возвращает данные текущего пользователя по JWT токену.",
+)
+async def get_me(user: User = Depends(get_current_user)):
+    return user
 
 
 @router.post(

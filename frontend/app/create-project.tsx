@@ -1,27 +1,44 @@
 import ArrowLeftIcon from "@/assets/icons/ArrowLeftIcon";
+import { createProject } from "@/services/api";
 import { router, Stack } from "expo-router";
 import { useState } from "react";
 import {
-    Pressable,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    View,
+  ActivityIndicator,
+  Alert,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
 } from "react-native";
 
 export default function CreateProjectScreen() {
   const [name, setName] = useState("");
   const [company, setCompany] = useState("");
   const [description, setDescription] = useState("");
+  const [ndaText, setNdaText] = useState("");
+  const [loading, setLoading] = useState(false);
 
-  const onCreateProject = () => {
-    console.log("Create project", {
-      name,
-      company,
-      description,
-    });
-    router.back();
+  const onCreateProject = async () => {
+    if (!name) {
+      Alert.alert("Error", "Project name is required");
+      return;
+    }
+    setLoading(true);
+    try {
+      await createProject({
+        name,
+        company,
+        description,
+        nda_text: ndaText || undefined,
+      });
+      router.back();
+    } catch (e: any) {
+      Alert.alert("Error", e.message || "Failed to create project");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -71,16 +88,34 @@ export default function CreateProjectScreen() {
               multiline
               textAlignVertical="top"
             />
+
+            <Text style={[styles.label, styles.sectionSpacing]}>
+              NDA Text
+            </Text>
+            <TextInput
+              value={ndaText}
+              onChangeText={setNdaText}
+              placeholder="Non-disclosure agreement text (optional)"
+              placeholderTextColor="#9A9A9A"
+              style={[styles.input, styles.multilineInput]}
+              multiline
+              textAlignVertical="top"
+            />
           </View>
 
           <Pressable
             onPress={onCreateProject}
+            disabled={loading}
             style={({ pressed }) => [
               styles.createButton,
               pressed && styles.createButtonPressed,
             ]}
           >
-            <Text style={styles.createButtonText}>Create Project</Text>
+            {loading ? (
+              <ActivityIndicator color="#FFFFFF" />
+            ) : (
+              <Text style={styles.createButtonText}>Create Project</Text>
+            )}
           </Pressable>
         </View>
       </ScrollView>

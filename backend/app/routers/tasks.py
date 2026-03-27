@@ -50,10 +50,14 @@ async def create_task(
     user: User = Depends(require_nda_signed),
     db: AsyncSession = Depends(get_db),
 ):
+    deadline = data.deadline
+    if deadline and deadline.tzinfo is not None:
+        deadline = deadline.replace(tzinfo=None)
+
     task = Task(
         title=data.title,
         description=data.description,
-        deadline=data.deadline,
+        deadline=deadline,
         important=data.important,
         assignee_id=data.assignee_id,
         project_id=project_id,
@@ -82,6 +86,11 @@ async def update_task(
     updates = data.model_dump(exclude_unset=True)
     if "status" in updates and updates["status"] not in VALID_STATUSES:
         raise HTTPException(status_code=400, detail=f"Invalid status. Must be one of: {', '.join(VALID_STATUSES)}")
+
+    if "deadline" in updates and updates["deadline"] is not None:
+        dl = updates["deadline"]
+        if hasattr(dl, "tzinfo") and dl.tzinfo is not None:
+            updates["deadline"] = dl.replace(tzinfo=None)
 
     for field, value in updates.items():
         setattr(task, field, value)
