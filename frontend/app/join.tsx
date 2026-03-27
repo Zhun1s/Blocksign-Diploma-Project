@@ -2,7 +2,7 @@ import ArrowLeftIcon from "@/assets/icons/ArrowLeftIcon";
 import JoinProjectPopup from "@/components/joinprojectpopup";
 import SignaturePopup from "@/components/signaturepopup";
 import { useTheme } from "@/contexts/ThemeContext";
-import { getNdaAccess, signNda } from "@/services/api";
+import { claimInvite, getNdaAccess, signNda } from "@/services/api";
 import {
   BarcodeScanningResult,
   CameraView,
@@ -28,7 +28,6 @@ export default function Join() {
   const [ndaText, setNdaText] = useState<string | undefined>();
   const [selectedLens, setSelectedLens] = useState("builtInWideAngleCamera");
 
-  // Popup states
   const [showNdaPopup, setShowNdaPopup] = useState(false);
   const [showSignature, setShowSignature] = useState(false);
   const [signing, setSigning] = useState(false);
@@ -44,23 +43,33 @@ export default function Join() {
         const projectName = parsed.projectName || "Project";
         const token = parsed.token;
 
-        // Fetch NDA from backend
         try {
+          // 1. Claim the invite (bind token to current user)
+          await claimInvite(projectId, token);
+
+          // 2. Get NDA info
           const nda = await getNdaAccess(projectId, token);
           setScannedData({ projectId, projectName: nda.project_name || projectName, token });
+
+          // 3. Fetch NDA text from IPFS
           if (nda.nda_ipfs_hash) {
-            // Fetch actual NDA text from IPFS
             try {
               const res = await fetch(`https://gateway.pinata.cloud/ipfs/${nda.nda_ipfs_hash}`);
-              const text = await res.text();
-              setNdaText(text);
+              setNdaText(await res.text());
             } catch {
               setNdaText(undefined);
             }
           }
+
+          // 4. Show NDA popup
           setShowNdaPopup(true);
         } catch (e: any) {
-          Alert.alert("Error", e.message || "Failed to access invite");
+          const msg = e?.message || "Failed to join project";
+          if (msg.includes("401") || msg.toLowerCase().includes("not authenticated")) {
+            Alert.alert("Login Required", "Please log in first, then scan the QR again.");
+          } else {
+            Alert.alert("Error", msg);
+          }
           setScanned(false);
         }
       } else {
@@ -77,7 +86,6 @@ export default function Join() {
     if (!scannedData) return;
     setSigning(true);
     try {
-      // Convert SVG paths to a simple base64 representation
       const svgContent = `<svg xmlns="http://www.w3.org/2000/svg" width="300" height="200">${svgPaths.map((d) => `<path d="${d}" stroke="#000" stroke-width="2" fill="none"/>`).join("")}</svg>`;
       const signatureBase64 = btoa(svgContent);
 
@@ -91,6 +99,13 @@ export default function Join() {
     } finally {
       setSigning(false);
     }
+  };
+
+  const resetScan = () => {
+    setScanned(false);
+    setScannedData(null);
+    setShowNdaPopup(false);
+    setShowSignature(false);
   };
 
   const handleAvailableLensesChanged = ({ lenses }: { lenses: string[] }) => {
@@ -137,14 +152,16 @@ export default function Join() {
       </View>
       <View style={styles.cameraText}>
         <Text style={styles.text}>
-          {scanned ? "Processing..." : "Please make sure that QR-code is seen good enough"}
+          {scanned ? "Processing..." : "Scan invite QR code to join project"}
         </Text>
       </View>
 
       {signing && (
         <View style={styles.loadingOverlay}>
           <ActivityIndicator size="large" color="#FFFFFF" />
-          <Text style={{ color: "#FFFFFF", marginTop: 8, fontWeight: "600" }}>Signing NDA on blockchain...</Text>
+          <Text style={{ color: "#FFFFFF", marginTop: 8, fontWeight: "600" }}>
+            Signing NDA on blockchain...
+          </Text>
         </View>
       )}
 
@@ -156,21 +173,13 @@ export default function Join() {
           setShowNdaPopup(false);
           setShowSignature(true);
         }}
-        onClose={() => {
-          setShowNdaPopup(false);
-          setScanned(false);
-          setScannedData(null);
-        }}
+        onClose={resetScan}
       />
 
       <SignaturePopup
         visible={showSignature}
         projectName={scannedData?.projectName}
-        onClose={() => {
-          setShowSignature(false);
-          setScanned(false);
-          setScannedData(null);
-        }}
+        onClose={resetScan}
         onSubmit={handleSignSubmit}
       />
     </View>
@@ -196,8 +205,6 @@ const styles = StyleSheet.create({
   loadingOverlay: {
     ...StyleSheet.absoluteFillObject,
     backgroundColor: "rgba(0,0,0,0.7)",
-    alignItems: "center",
-    justifyContent: "center",
-    zIndex: 100,
+    alignItems: "center", justifyContent: "center", zIndex: 100,
   },
 });
