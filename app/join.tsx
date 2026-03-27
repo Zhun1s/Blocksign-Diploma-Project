@@ -9,16 +9,106 @@ import { router } from "expo-router";
 import { useState } from "react";
 import { Button, Pressable, StyleSheet, Text, View } from "react-native";
 
+const getProjectNameFromQrData = (rawData: string) => {
+  if (!rawData) return undefined;
+
+  try {
+    const parsedData = JSON.parse(rawData) as {
+      projectName?: string;
+      name?: string;
+      project?: string;
+    };
+    const fromObject =
+      parsedData.projectName || parsedData.name || parsedData.project;
+    if (fromObject && fromObject.trim().length > 0) {
+      return fromObject.trim();
+    }
+  } catch {
+    // Not a JSON payload.
+  }
+
+  try {
+    const url = new URL(rawData);
+    const fromParams =
+      url.searchParams.get("projectName") ||
+      url.searchParams.get("name") ||
+      url.searchParams.get("project");
+
+    if (fromParams && fromParams.trim().length > 0) {
+      return fromParams.trim();
+    }
+  } catch {
+    // Not a URL payload.
+  }
+
+  return rawData.trim() || undefined;
+};
+
+const getNdaTextFromQrData = (rawData: string) => {
+  if (!rawData) return undefined;
+
+  try {
+    const parsedData = JSON.parse(rawData) as {
+      ndaText?: string;
+      nda?: string;
+      paper?: string;
+      text?: string;
+    };
+    const fromObject =
+      parsedData.ndaText ||
+      parsedData.nda ||
+      parsedData.paper ||
+      parsedData.text;
+    if (fromObject && fromObject.trim().length > 0) {
+      return fromObject.trim();
+    }
+  } catch {
+    // Not a JSON payload.
+  }
+
+  try {
+    const url = new URL(rawData);
+    const fromParams =
+      url.searchParams.get("ndaText") ||
+      url.searchParams.get("nda") ||
+      url.searchParams.get("paper") ||
+      url.searchParams.get("text");
+
+    if (fromParams && fromParams.trim().length > 0) {
+      return fromParams.trim();
+    }
+  } catch {
+    // Not a URL payload.
+  }
+
+  return undefined;
+};
+
 export default function Join() {
   const [permission, requestPermission] = useCameraPermissions();
 
   const [scanned, setScanned] = useState(false);
+  const [scannedProjectName, setScannedProjectName] = useState<string>();
+  const [scannedNdaText, setScannedNdaText] = useState<string>();
   const [selectedLens, setSelectedLens] = useState("builtInWideAngleCamera");
 
   const handleBarcodeScanned = ({ type, data }: BarcodeScanningResult) => {
     if (scanned) return;
     console.log("[Barcode] scanned", { type, data });
+    setScannedProjectName(getProjectNameFromQrData(data));
+    setScannedNdaText(getNdaTextFromQrData(data));
     setScanned(true);
+  };
+
+  const handleContinue = () => {
+    router.replace({
+      pathname: "/(tabs)/projects",
+      params: {
+        joined: "1",
+        joinedProject: scannedProjectName,
+        joinedNda: scannedNdaText,
+      },
+    });
   };
 
   const handleAvailableLensesChanged = ({ lenses }: { lenses: string[] }) => {
@@ -86,9 +176,9 @@ export default function Join() {
         </Text>
       </View>
       {scanned && (
-        <View style={styles.continueButton}>
+        <Pressable onPress={handleContinue} style={styles.continueButton}>
           <Text style={{ fontWeight: "600", fontSize: 16 }}>Continue</Text>
-        </View>
+        </Pressable>
       )}
     </View>
   );

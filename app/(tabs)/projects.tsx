@@ -1,10 +1,12 @@
 import ArrowLeftIcon from "@/assets/icons/ArrowLeftIcon";
+import JoinProjectPopup from "@/components/joinprojectpopup";
 import ProjectsbyOwner, {
   splitProjectsByMembership,
 } from "@/components/projectsrow";
+import SignaturePopup from "@/components/signaturepopup";
 import { GlassView } from "expo-glass-effect";
-import { router } from "expo-router";
-import { useState } from "react";
+import { router, useLocalSearchParams } from "expo-router";
+import { useEffect, useState } from "react";
 import {
   Pressable,
   ScrollView,
@@ -76,11 +78,43 @@ const mockProjects: Project[] = [
 ];
 
 export default function Projects() {
+  const { joined, joinedProject, joinedNda } = useLocalSearchParams<{
+    joined?: string;
+    joinedProject?: string;
+    joinedNda?: string;
+  }>();
+
   const currentUserId = "owner1";
   const sections = splitProjectsByMembership(mockProjects, currentUserId);
 
   const [query, setQuery] = useState("");
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [isNdaPopupVisible, setIsNdaPopupVisible] = useState(false);
+  const [isSignaturePopupVisible, setIsSignaturePopupVisible] = useState(false);
+  const [joinedProjectName, setJoinedProjectName] = useState<
+    string | undefined
+  >();
+  const [joinedNdaText, setJoinedNdaText] = useState<string | undefined>();
+
+  useEffect(() => {
+    if (joined !== "1") return;
+
+    const projectNameFromParams =
+      typeof joinedProject === "string" ? joinedProject : undefined;
+    const joinedNdaFromParams =
+      typeof joinedNda === "string" ? joinedNda : undefined;
+
+    setJoinedProjectName(projectNameFromParams);
+    setJoinedNdaText(joinedNdaFromParams);
+    setIsNdaPopupVisible(true);
+    setIsSignaturePopupVisible(false);
+
+    router.setParams({
+      joined: undefined,
+      joinedProject: undefined,
+      joinedNda: undefined,
+    });
+  }, [joined, joinedProject, joinedNda]);
 
   const filteredSections = sections.map((section) => ({
     ...section,
@@ -162,6 +196,29 @@ export default function Projects() {
             /* reload */
           }}
           setError={(msg) => console.warn(msg)}
+        />
+
+        <JoinProjectPopup
+          visible={isNdaPopupVisible}
+          projectName={joinedProjectName}
+          ndaText={joinedNdaText}
+          onContinue={() => {
+            setIsNdaPopupVisible(false);
+            setIsSignaturePopupVisible(true);
+          }}
+          onClose={() => {
+            setIsNdaPopupVisible(false);
+            setIsSignaturePopupVisible(false);
+          }}
+        />
+
+        <SignaturePopup
+          visible={isSignaturePopupVisible}
+          projectName={joinedProjectName}
+          onClose={() => setIsSignaturePopupVisible(false)}
+          onSubmit={() => {
+            setIsSignaturePopupVisible(false);
+          }}
         />
       </View>
     </ScrollView>
