@@ -48,7 +48,8 @@
           "barcodeScannerEnabled": true
         }
       ],
-      "react-native-bottom-tabs"
+      "react-native-bottom-tabs",
+      "@react-native-community/datetimepicker"
     ],
     "experiments": {
       "typedRoutes": true,

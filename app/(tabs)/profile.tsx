@@ -1,9 +1,28 @@
 import ArrowLeftIcon from "@/assets/icons/ArrowLeftIcon";
 import ArrowRightIcon from "@/assets/icons/ArrowRightIcon";
 import { Image } from "expo-image";
-import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { router } from "expo-router";
+import {
+  Alert,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from "react-native";
 
 export default function Profile() {
+  const onExitPress = () => {
+    Alert.alert("Exit account", "Are you sure you want to exit?", [
+      { text: "Cancel", style: "cancel" },
+      {
+        text: "Exit",
+        style: "destructive",
+        onPress: () => router.replace("/welcome"),
+      },
+    ]);
+  };
+
   return (
     <ScrollView showsVerticalScrollIndicator={false} style={styles.background}>
       <View style={styles.container}>
@@ -13,7 +32,9 @@ export default function Profile() {
             source={require("../../assets/images/BLS-logo.png")}
             contentFit="contain"
           />
-          <ArrowLeftIcon />
+          <Pressable onPress={onExitPress} hitSlop={8}>
+            <ArrowLeftIcon />
+          </Pressable>
         </View>
         <View style={styles.profileData}>
           <View style={styles.profileAvatar}></View>

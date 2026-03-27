@@ -67,7 +67,7 @@ const mockProjects: Project[] = [
     ownerId: "owner2",
     createdById: "owner2",
     company: "University",
-    name: "University",
+    name: "University 2",
     documentsCount: 3,
     membersCount: 3,
     memberIds: ["owner1"],
@@ -117,7 +117,7 @@ export default function Projects() {
               <Pressable
                 onPress={() => {
                   setIsMenuOpen(false);
-                  console.warn("Create project action is not implemented yet");
+                  router.push("/create-project");
                 }}
                 style={[
                   styles.menuItem,
