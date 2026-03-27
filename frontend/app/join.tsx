@@ -10,7 +10,7 @@ import {
 } from "expo-camera";
 import { GlassView } from "expo-glass-effect";
 import { router } from "expo-router";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { ActivityIndicator, Alert, Button, Pressable, StyleSheet, Text, View } from "react-native";
 
 type ScannedData = {
@@ -24,6 +24,7 @@ export default function Join() {
   const { colors } = useTheme();
 
   const [scanned, setScanned] = useState(false);
+  const scanLock = useRef(false);
   const [scannedData, setScannedData] = useState<ScannedData | null>(null);
   const [ndaText, setNdaText] = useState<string | undefined>();
   const [selectedLens, setSelectedLens] = useState("builtInWideAngleCamera");
@@ -33,7 +34,8 @@ export default function Join() {
   const [signing, setSigning] = useState(false);
 
   const handleBarcodeScanned = async ({ data }: BarcodeScanningResult) => {
-    if (scanned) return;
+    if (scanLock.current) return;
+    scanLock.current = true;
     setScanned(true);
 
     try {
@@ -70,14 +72,17 @@ export default function Join() {
           } else {
             Alert.alert("Error", msg);
           }
+          scanLock.current = false;
           setScanned(false);
         }
       } else {
         Alert.alert("Invalid QR", "This QR code is not a valid project invite.");
+        scanLock.current = false;
         setScanned(false);
       }
     } catch {
       Alert.alert("Invalid QR", "Could not read QR code data.");
+      scanLock.current = false;
       setScanned(false);
     }
   };
@@ -102,6 +107,7 @@ export default function Join() {
   };
 
   const resetScan = () => {
+    scanLock.current = false;
     setScanned(false);
     setScannedData(null);
     setShowNdaPopup(false);

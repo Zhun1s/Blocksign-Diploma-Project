@@ -26,11 +26,12 @@ async def upload_file(
     db: AsyncSession = Depends(get_db),
 ):
     contents = await file.read()
-    ipfs_hash = await upload_to_ipfs(contents, file.filename or "file")
+    file_name = file.filename or "file"
+    ipfs_hash = await upload_to_ipfs(contents, file_name)
 
     db_file = File(
         project_id=project_id,
-        file_name=file.filename or "file",
+        file_name=file_name,
         ipfs_hash=ipfs_hash,
         file_size=len(contents),
         uploaded_by=user.id,
@@ -56,3 +57,25 @@ async def list_files(
         select(File).where(File.project_id == project_id).order_by(File.created_at.desc())
     )
     return result.scalars().all()
+
+
+@router.delete(
+    "/{file_id}",
+    status_code=204,
+    summary="Удалить файл",
+    description="Удаляет файл из проекта. Требуется подписанный NDA.",
+)
+async def delete_file(
+    project_id: int,
+    file_id: int,
+    user: User = Depends(require_nda_signed),
+    db: AsyncSession = Depends(get_db),
+):
+    result = await db.execute(
+        select(File).where(File.project_id == project_id, File.id == file_id)
+    )
+    db_file = result.scalar_one_or_none()
+    if not db_file:
+        raise HTTPException(status_code=404, detail="File not found")
+    await db.delete(db_file)
+    await db.commit()

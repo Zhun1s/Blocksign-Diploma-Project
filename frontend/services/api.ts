@@ -1,8 +1,8 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
 const BASE_URL = __DEV__
-  ? "http://192.168.8.76:8000"
-  : "http://192.168.8.76:8000";
+  ? "http://192.168.10.8:8000"
+  : "http://192.168.10.8:8000";
 
 const TOKEN_KEY = "auth_token";
 
@@ -242,6 +242,15 @@ export async function uploadFile(
   return request(`/projects/${projectId}/files`, {
     method: "POST",
     body: formData,
+  });
+}
+
+export async function deleteFile(
+  projectId: number,
+  fileId: number,
+): Promise<void> {
+  return request(`/projects/${projectId}/files/${fileId}`, {
+    method: "DELETE",
   });
 }
 

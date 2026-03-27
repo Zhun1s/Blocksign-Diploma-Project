@@ -79,7 +79,12 @@ async def sign_nda(
     nda_hash = hashlib.sha256(combined.encode()).hexdigest()
 
     # Store on blockchain (relayer: server pays gas, userId stored in contract)
-    tx_hash = await store_nda_hash_on_chain(project_id, qr.user_id, nda_hash)
+    tx_hash = None
+    try:
+        tx_hash = await store_nda_hash_on_chain(project_id, qr.user_id, nda_hash)
+    except Exception as e:
+        import logging
+        logging.getLogger(__name__).warning("Blockchain tx failed (NDA still signed): %s", e)
 
     # Update member
     result = await db.execute(

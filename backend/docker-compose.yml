@@ -26,6 +26,6 @@ services:
       db:
         condition: service_healthy
     command: >
-      sh -c "alembic revision --autogenerate -m init 2>/dev/null;
-             alembic upgrade head &&
+      sh -c "alembic upgrade head 2>/dev/null ||
+             (alembic revision --autogenerate -m init && alembic upgrade head);
              uvicorn app.main:app --host 0.0.0.0 --port 8000"

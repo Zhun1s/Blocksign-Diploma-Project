@@ -6,9 +6,12 @@ import { DocumentList } from "@/components/documentlist";
 import { ParticipantList } from "@/components/participantlist";
 import { TaskItem } from "@/components/taskitem";
 import { TaskPopup } from "@/components/TaskPopup";
+import SignaturePopup from "@/components/signaturepopup";
+import { useAuth } from "@/contexts/AuthContext";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useTheme } from "@/contexts/ThemeContext";
 import {
+  deleteFile,
   deleteTask,
   getFiles,
   getMembers,
@@ -18,6 +21,9 @@ import {
   updateTask,
   uploadFile,
   createReport,
+  signNda,
+  inviteMember,
+  getNdaAccess,
   type FileItem,
   type Member,
   type Report,
@@ -99,6 +105,7 @@ export default function ProjectDetails() {
   const projectId = Number(id);
   const { colors } = useTheme();
   const { t } = useLanguage();
+  const { user } = useAuth();
   const [projectName, setProjectName] = useState(name || "Project");
   const [projectDescription, setProjectDescription] = useState("");
   const [selectedIndex, setSelectedIndex] = useState(0);
@@ -112,6 +119,9 @@ export default function ProjectDetails() {
   const [reports, setReports] = useState<Report[]>([]);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
+  const [showNdaSign, setShowNdaSign] = useState(false);
+  const [ndaToken, setNdaToken] = useState<string | null>(null);
+  const [signingNda, setSigningNda] = useState(false);
 
   // Report form
   const [showReportForm, setShowReportForm] = useState(false);
@@ -246,10 +256,47 @@ export default function ProjectDetails() {
         ? taskRows.filter((t) => t.important)
         : taskRows.filter((t) => t.status === active);
 
+  const currentMember = members.find((m) => m.userId === user?.id);
+  const isOwnerOrManager = currentMember?.role === "owner" || currentMember?.role === "manager";
+  const ndaSigned = currentMember?.ndaSigned ?? false;
+
+  const handleStartNdaSign = async () => {
+    try {
+      // Owner generates invite token for self-signing
+      const res = await inviteMember(projectId);
+      // Claim it
+      const { claimInvite } = await import("@/services/api");
+      await claimInvite(projectId, res.token);
+      setNdaToken(res.token);
+      setShowNdaSign(true);
+    } catch (e: any) {
+      Alert.alert(t("error"), e.message);
+    }
+  };
+
+  const handleNdaSignSubmit = async (svgPaths: string[]) => {
+    if (!ndaToken) return;
+    setSigningNda(true);
+    try {
+      const svgContent = `<svg xmlns="http://www.w3.org/2000/svg" width="300" height="200">${svgPaths.map((d) => `<path d="${d}" stroke="#000" stroke-width="2" fill="none"/>`).join("")}</svg>`;
+      const signatureBase64 = btoa(svgContent);
+      await signNda(projectId, ndaToken, signatureBase64);
+      setShowNdaSign(false);
+      setNdaToken(null);
+      Alert.alert("Success", "NDA signed successfully!");
+      loadData();
+    } catch (e: any) {
+      Alert.alert(t("error"), e.message);
+    } finally {
+      setSigningNda(false);
+    }
+  };
+
   const participants = members.map((m) => ({
     id: String(m.userId),
     name: m.fullName,
     email: m.email,
+    role: m.role,
   }));
 
   const documents = files.map((f) => ({
@@ -303,6 +350,26 @@ export default function ProjectDetails() {
             style={[styles.segmentedControl, { borderRadius: 0 }]}
             tabStyle={{ borderRadius: 1 }}
           />
+          {/* ── NDA Banner ── */}
+          {!ndaSigned && currentMember && (
+            <View style={[styles.ndaBanner, { backgroundColor: "#FF8223" + "20", borderColor: "#FF8223" }]}>
+              <Text style={{ fontSize: 15, fontWeight: "600", color: "#FF8223" }}>
+                You have not signed the NDA yet
+              </Text>
+              <Text style={{ fontSize: 13, color: colors.textSecondary, marginTop: 4 }}>
+                Sign the NDA to access tasks, files and reports
+              </Text>
+              <Pressable
+                onPress={handleStartNdaSign}
+                style={[styles.ndaSignButton, { backgroundColor: "#FF8223" }]}
+              >
+                <Text style={{ fontSize: 14, fontWeight: "700", color: "#FFF" }}>
+                  Sign NDA
+                </Text>
+              </Pressable>
+            </View>
+          )}
+
           {/* ── General Tab ── */}
           {selectedIndex === 0 && (
             <View>
@@ -335,21 +402,23 @@ export default function ProjectDetails() {
                 <Text style={{ fontSize: 20, fontWeight: "600", color: colors.text }}>
                   {t("participants")}
                 </Text>
-                <Pressable
-                  onPress={() => {
-                    router.push({
-                      pathname: "/projects/[id]/add-participant",
-                      params: { id: id ?? "projectId", name: projectName },
-                    });
-                  }}
-                >
-                  <View style={[styles.addParticipantButton, { backgroundColor: colors.card }]}>
-                    <AddPlusIcon height={24} width={24} color={colors.text} />
-                    <Text style={{ fontSize: 14, fontWeight: "500", color: colors.text }}>
-                      {t("addParticipant")}
-                    </Text>
-                  </View>
-                </Pressable>
+                {isOwnerOrManager && (
+                  <Pressable
+                    onPress={() => {
+                      router.push({
+                        pathname: "/projects/[id]/add-participant",
+                        params: { id: id ?? "projectId", name: projectName },
+                      });
+                    }}
+                  >
+                    <View style={[styles.addParticipantButton, { backgroundColor: colors.card }]}>
+                      <AddPlusIcon height={24} width={24} color={colors.text} />
+                      <Text style={{ fontSize: 14, fontWeight: "500", color: colors.text }}>
+                        {t("addParticipant")}
+                      </Text>
+                    </View>
+                  </Pressable>
+                )}
               </View>
               <View>
                 <ParticipantList
@@ -529,6 +598,14 @@ export default function ProjectDetails() {
               <DocumentList
                 documents={documents}
                 onPressDocument={handleDocumentPress}
+                onDeleteDocument={async (doc) => {
+                  try {
+                    await deleteFile(projectId, Number(doc.id));
+                    loadData();
+                  } catch (e: any) {
+                    Alert.alert(t("error"), e.message);
+                  }
+                }}
               />
               {documents.length === 0 && (
                 <Text
@@ -569,6 +646,12 @@ export default function ProjectDetails() {
           </Pressable>
         </View>
       ) : null}
+      <SignaturePopup
+        visible={showNdaSign}
+        projectName={projectName}
+        onClose={() => { setShowNdaSign(false); setNdaToken(null); }}
+        onSubmit={handleNdaSignSubmit}
+      />
       <TaskPopup
         task={selectedTask}
         visible={!!selectedTask}
@@ -677,5 +760,18 @@ const styles = StyleSheet.create({
   reportItem: {
     borderBottomWidth: 0.5,
     paddingBottom: 12,
+  },
+  ndaBanner: {
+    marginTop: 16,
+    borderRadius: 16,
+    borderWidth: 1,
+    paddingHorizontal: 16,
+    paddingVertical: 16,
+  },
+  ndaSignButton: {
+    marginTop: 12,
+    borderRadius: 12,
+    alignItems: "center",
+    paddingVertical: 12,
   },
 });

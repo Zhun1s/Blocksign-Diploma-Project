@@ -15,7 +15,7 @@ class File(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True)
     project_id: Mapped[int] = mapped_column(Integer, ForeignKey("projects.id"))
-    file_name: Mapped[str] = mapped_column(String(255))
+    file_name: Mapped[str] = mapped_column(String(1024))
     ipfs_hash: Mapped[str] = mapped_column(String(255))
     file_size: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
     uploaded_by: Mapped[int] = mapped_column(Integer, ForeignKey("users.id"))

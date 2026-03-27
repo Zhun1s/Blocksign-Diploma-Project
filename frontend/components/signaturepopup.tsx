@@ -1,6 +1,6 @@
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useTheme } from "@/contexts/ThemeContext";
-import { useMemo, useRef, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import {
   Modal,
   PanResponder,
@@ -28,11 +28,14 @@ export default function SignaturePopup({
   const { height } = useWindowDimensions();
   const { colors } = useTheme();
   const { t } = useLanguage();
-  const [paths, setPaths] = useState<string[]>([]);
-  const [currentPath, setCurrentPath] = useState("");
-  const pathBuilderRef = useRef("");
 
-  const isSigned = paths.length > 0 || currentPath.length > 0;
+  // Use ref for completed paths to avoid stale closure in PanResponder
+  const completedPathsRef = useRef<string[]>([]);
+  const [completedPaths, setCompletedPaths] = useState<string[]>([]);
+  const [currentPath, setCurrentPath] = useState("");
+  const currentPathRef = useRef("");
+
+  const isSigned = completedPaths.length > 0 || currentPath.length > 0;
 
   const panResponder = useMemo(
     () =>
@@ -43,46 +46,53 @@ export default function SignaturePopup({
         onMoveShouldSetPanResponderCapture: () => true,
         onPanResponderGrant: (event) => {
           const { locationX, locationY } = event.nativeEvent;
-          pathBuilderRef.current = `M ${locationX} ${locationY}`;
-          setCurrentPath(pathBuilderRef.current);
+          currentPathRef.current = `M ${locationX} ${locationY}`;
+          setCurrentPath(currentPathRef.current);
         },
         onPanResponderMove: (event) => {
           const { locationX, locationY } = event.nativeEvent;
-          pathBuilderRef.current += ` L ${locationX} ${locationY}`;
-          setCurrentPath(pathBuilderRef.current);
+          currentPathRef.current += ` L ${locationX} ${locationY}`;
+          setCurrentPath(currentPathRef.current);
         },
         onPanResponderRelease: () => {
-          if (!pathBuilderRef.current) return;
-          setPaths((prev) => [...prev, pathBuilderRef.current]);
-          pathBuilderRef.current = "";
+          if (!currentPathRef.current) return;
+          const finished = currentPathRef.current;
+          completedPathsRef.current = [...completedPathsRef.current, finished];
+          setCompletedPaths([...completedPathsRef.current]);
+          currentPathRef.current = "";
           setCurrentPath("");
         },
         onPanResponderTerminate: () => {
-          if (!pathBuilderRef.current) return;
-          setPaths((prev) => [...prev, pathBuilderRef.current]);
-          pathBuilderRef.current = "";
+          if (!currentPathRef.current) return;
+          const finished = currentPathRef.current;
+          completedPathsRef.current = [...completedPathsRef.current, finished];
+          setCompletedPaths([...completedPathsRef.current]);
+          currentPathRef.current = "";
           setCurrentPath("");
         },
       }),
     [],
   );
 
-  const handleClear = () => {
-    setPaths([]);
+  const handleClear = useCallback(() => {
+    completedPathsRef.current = [];
+    setCompletedPaths([]);
     setCurrentPath("");
-    pathBuilderRef.current = "";
-  };
+    currentPathRef.current = "";
+  }, []);
 
-  const handleSubmit = () => {
-    const allPaths = currentPath ? [...paths, currentPath] : [...paths];
+  const handleSubmit = useCallback(() => {
+    const allPaths = currentPath
+      ? [...completedPathsRef.current, currentPath]
+      : [...completedPathsRef.current];
     onSubmit(allPaths);
     handleClear();
-  };
+  }, [currentPath, onSubmit, handleClear]);
 
-  const handleClose = () => {
+  const handleClose = useCallback(() => {
     handleClear();
     onClose();
-  };
+  }, [handleClear, onClose]);
 
   const strokeColor = colors.text;
 
@@ -101,7 +111,7 @@ export default function SignaturePopup({
 
           <View style={[styles.canvasWrap, { borderColor: colors.border }]} collapsable={false} {...panResponder.panHandlers}>
             <Svg width="100%" height="100%" style={styles.canvas} pointerEvents="none">
-              {paths.map((d, index) => (
+              {completedPaths.map((d, index) => (
                 <Path key={`p-${index}`} d={d} stroke={strokeColor} strokeWidth={2.4} strokeLinecap="round" strokeLinejoin="round" fill="none" />
               ))}
               {currentPath ? (
