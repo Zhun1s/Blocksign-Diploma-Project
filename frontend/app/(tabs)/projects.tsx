@@ -1,7 +1,9 @@
 import ArrowLeftIcon from "@/assets/icons/ArrowLeftIcon";
 import ProjectsbyOwner from "@/components/projectsrow";
 import { useAuth } from "@/contexts/AuthContext";
-import { getProjects, getMembers, getFiles, type Project } from "@/services/api";
+import { useLanguage } from "@/contexts/LanguageContext";
+import { useTheme } from "@/contexts/ThemeContext";
+import { getFiles, getMembers, getProjects } from "@/services/api";
 import { GlassView } from "expo-glass-effect";
 import { router, useFocusEffect } from "expo-router";
 import { useCallback, useState } from "react";
@@ -34,6 +36,8 @@ export default function Projects() {
   const [query, setQuery] = useState("");
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [loading, setLoading] = useState(true);
+  const { colors } = useTheme();
+  const { t } = useLanguage();
 
   const load = useCallback(async () => {
     try {
@@ -83,8 +87,8 @@ export default function Projects() {
   const joined = projects.filter((p) => p.createdById !== currentUserId);
 
   const sections = [
-    ...(owned.length ? [{ title: "Created by me", data: owned }] : []),
-    ...(joined.length ? [{ title: "Joined", data: joined }] : []),
+    ...(owned.length ? [{ title: t("createdByMe"), data: owned }] : []),
+    ...(joined.length ? [{ title: t("joined"), data: joined }] : []),
   ];
 
   const filteredSections = sections.map((section) => ({
@@ -95,7 +99,7 @@ export default function Projects() {
   }));
 
   return (
-    <ScrollView showsVerticalScrollIndicator={false} style={styles.background}>
+    <ScrollView showsVerticalScrollIndicator={false} style={{ flex: 1, backgroundColor: colors.background }}>
       <View style={styles.container}>
         {isMenuOpen ? (
           <Pressable
@@ -105,7 +109,7 @@ export default function Projects() {
         ) : null}
 
         <View style={styles.headerRow}>
-          <Text style={styles.textDay}>My Projects</Text>
+          <Text style={[styles.textDay, { color: colors.text }]}>{t("myProjects")}</Text>
 
           <Pressable
             onPress={() => setIsMenuOpen((prev) => !prev)}
@@ -113,12 +117,12 @@ export default function Projects() {
             style={styles.menuAnchor}
           >
             <GlassView style={styles.buttonCircle} isInteractive>
-              <AddPlusIcon />
+              <AddPlusIcon color={colors.text} />
             </GlassView>
           </Pressable>
 
           {isMenuOpen ? (
-            <View style={styles.menuCard}>
+            <View style={[styles.menuCard, { backgroundColor: colors.card }]}>
               <Pressable
                 onPress={() => {
                   setIsMenuOpen(false);
@@ -126,11 +130,11 @@ export default function Projects() {
                 }}
                 style={[
                   styles.menuItem,
-                  { borderBottomWidth: 0.5, borderBottomColor: "#E5E5E5" },
+                  { borderBottomWidth: 0.5, borderBottomColor: colors.border },
                 ]}
               >
-                <ArrowLeftIcon />
-                <Text style={styles.menuItemText}>Create project</Text>
+                <ArrowLeftIcon color={colors.text} />
+                <Text style={[styles.menuItemText, { color: colors.text }]}>{t("createProject")}</Text>
               </Pressable>
               <Pressable
                 onPress={() => {
@@ -139,18 +143,18 @@ export default function Projects() {
                 }}
                 style={styles.menuItem}
               >
-                <ArrowLeftIcon />
-                <Text style={styles.menuItemText}>Join project</Text>
+                <ArrowLeftIcon color={colors.text} />
+                <Text style={[styles.menuItemText, { color: colors.text }]}>{t("joinProject")}</Text>
               </Pressable>
             </View>
           ) : null}
         </View>
-        <View style={styles.searchContainer}>
-          <SearchIcon />
+        <View style={[styles.searchContainer, { backgroundColor: colors.card }]}>
+          <SearchIcon color={colors.textSecondary} />
           <TextInput
-            style={styles.searchInput}
-            placeholder="Search"
-            placeholderTextColor="#535353"
+            style={[styles.searchInput, { color: colors.text }]}
+            placeholder={t("search")}
+            placeholderTextColor={colors.placeholder}
             value={query}
             onChangeText={setQuery}
           />

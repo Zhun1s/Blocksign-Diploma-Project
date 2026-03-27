@@ -1,7 +1,9 @@
 import ArrowLeftIcon from "@/assets/icons/ArrowLeftIcon";
+import { useLanguage } from "@/contexts/LanguageContext";
+import { useTheme } from "@/contexts/ThemeContext";
 import { inviteMember } from "@/services/api";
 import { router, Stack, useLocalSearchParams } from "expo-router";
-import { useCallback, useEffect, useState } from "react";
+import { useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -9,6 +11,7 @@ import {
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   View,
 } from "react-native";
 import QRCode from "react-native-qrcode-svg";
@@ -17,33 +20,28 @@ export default function AddParticipantScreen() {
   const { id, name } = useLocalSearchParams<{ id?: string; name?: string }>();
   const projectId = Number(id);
   const projectName = name ? `${name}` : "Project";
+  const { colors } = useTheme();
+  const { t } = useLanguage();
 
+  const [email, setEmail] = useState("");
   const [inviteToken, setInviteToken] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const [errorText, setErrorText] = useState<string | null>(null);
 
-  const onInvite = useCallback(async () => {
-    if (!Number.isFinite(projectId)) {
-      Alert.alert("Error", "Invalid project id");
+  const onInvite = async () => {
+    if (!email) {
+      Alert.alert(t("error"), t("enterEmail"));
       return;
     }
     setLoading(true);
-    setErrorText(null);
     try {
-      const res = await inviteMember(projectId);
+      const res = await inviteMember(projectId, email);
       setInviteToken(res.token);
     } catch (e: any) {
-      const message = e?.message || "Failed to invite";
-      setErrorText(message);
-      Alert.alert("Error", message);
+      Alert.alert(t("error"), e.message);
     } finally {
       setLoading(false);
     }
-  }, [projectId]);
-
-  useEffect(() => {
-    onInvite();
-  }, [onInvite]);
+  };
 
   const qrPayload = inviteToken
     ? JSON.stringify({
@@ -59,57 +57,74 @@ export default function AddParticipantScreen() {
       <Stack.Screen options={{ headerShown: false }} />
       <ScrollView
         showsVerticalScrollIndicator={false}
-        style={styles.background}
+        style={[styles.background, { backgroundColor: colors.background }]}
         contentContainerStyle={styles.scrollContent}
       >
         <View style={styles.container}>
           <View style={styles.headerRow}>
             <Pressable onPress={() => router.back()}>
-              <ArrowLeftIcon />
+              <ArrowLeftIcon color={colors.text} />
             </Pressable>
-            <Text style={styles.projectName}>Add Participant</Text>
+            <Text style={[styles.projectName, { color: colors.text }]}>{t("addParticipant")}</Text>
           </View>
 
-          <View style={styles.descriptionContainer}>
-            <Text style={styles.sectionTitle}>Project:</Text>
-            <Text style={styles.sectionTitleName}>{projectName}</Text>
+          <View style={[styles.descriptionContainer, { backgroundColor: colors.card }]}>
+            <Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>Project:</Text>
+            <Text style={[styles.sectionTitleName, { color: colors.text }]}>{projectName}</Text>
           </View>
 
           {!inviteToken ? (
-            <View style={styles.formContainer}>
-              <Text style={styles.label}>Generating Invite QR</Text>
-              <Text style={styles.descriptionTextLeft}>
-                Creating a one-time QR code for a new participant.
-              </Text>
-              {loading && <ActivityIndicator style={styles.loadingIndicator} />}
-              {!loading && errorText && (
-                <>
-                  <Text style={styles.errorText}>{errorText}</Text>
-                  <Pressable onPress={onInvite} style={styles.retryButton}>
-                    <Text style={styles.retryButtonText}>Retry</Text>
-                  </Pressable>
-                </>
-              )}
+            <View style={[styles.formContainer, { backgroundColor: colors.card }]}>
+              <Text style={[styles.label, { color: colors.text }]}>{t("participantEmail")}</Text>
+              <TextInput
+                value={email}
+                onChangeText={setEmail}
+                placeholder="user@example.com"
+                placeholderTextColor={colors.placeholder}
+                keyboardType="email-address"
+                autoCapitalize="none"
+                style={[styles.input, { backgroundColor: colors.inputBg, borderColor: colors.border, color: colors.inputText }]}
+              />
+              <Pressable
+                onPress={onInvite}
+                disabled={loading}
+                style={({ pressed }) => [
+                  styles.inviteButton,
+                  { backgroundColor: colors.primary },
+                  pressed && { opacity: 0.9 },
+                ]}
+              >
+                {loading ? (
+                  <ActivityIndicator color={colors.primaryText} />
+                ) : (
+                  <Text style={[styles.inviteButtonText, { color: colors.primaryText }]}>{t("sendInvite")}</Text>
+                )}
+              </Pressable>
             </View>
           ) : (
-            <View style={styles.qrContainer}>
-              <QRCode value={qrPayload} size={220} backgroundColor="#FFFFFF" />
-              <Text style={styles.inviteLabel}>Invite Code</Text>
-              <Text style={styles.inviteTokenText}>
+            <View style={[styles.qrContainer, { backgroundColor: colors.card }]}>
+              <QRCode
+                value={qrPayload}
+                size={220}
+                backgroundColor={colors.card}
+              />
+              <Text style={[styles.inviteLabel, { color: colors.textSecondary }]}>{t("inviteCode")}</Text>
+              <Text style={[styles.inviteTokenText, { color: colors.text }]}>
                 {inviteToken.slice(0, 12)}...
               </Text>
-              <Text style={styles.descriptionText}>
-                New participant joins the project only after signing NDA and
-                accepting project rules.
+              <Text style={[styles.descriptionText, { color: colors.textSecondary }]}>
+                {t("inviteDisclaimer")}
               </Text>
               <Pressable
                 onPress={() => {
                   setInviteToken(null);
-                  onInvite();
+                  setEmail("");
                 }}
-                style={styles.newInviteButton}
+                style={[styles.newInviteButton, { backgroundColor: colors.primary }]}
               >
-                <Text style={styles.newInviteButtonText}>Invite Another</Text>
+                <Text style={[styles.newInviteButtonText, { color: colors.primaryText }]}>
+                  {t("inviteAnother")}
+                </Text>
               </Pressable>
             </View>
           )}
@@ -122,7 +137,6 @@ export default function AddParticipantScreen() {
 const styles = StyleSheet.create({
   background: {
     flex: 1,
-    backgroundColor: "#F2F2F2",
   },
   scrollContent: {
     paddingBottom: 24,
@@ -145,7 +159,6 @@ const styles = StyleSheet.create({
   },
   descriptionContainer: {
     display: "flex",
-    backgroundColor: "#FFFFFF",
     borderRadius: 16,
     paddingHorizontal: 16,
     paddingVertical: 16,
@@ -155,7 +168,6 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 16,
     fontWeight: "500",
-    color: "#767676",
   },
   sectionTitleName: {
     fontSize: 24,
@@ -163,7 +175,6 @@ const styles = StyleSheet.create({
   },
   formContainer: {
     marginTop: 16,
-    backgroundColor: "#FFFFFF",
     borderRadius: 16,
     paddingHorizontal: 16,
     paddingVertical: 16,
@@ -171,42 +182,32 @@ const styles = StyleSheet.create({
   label: {
     fontSize: 16,
     fontWeight: "600",
-    color: "#000",
   },
-  descriptionTextLeft: {
+  input: {
     marginTop: 8,
-    fontSize: 14,
-    color: "#767676",
-  },
-  loadingIndicator: {
-    marginTop: 16,
-  },
-  errorText: {
-    marginTop: 12,
-    fontSize: 14,
-    color: "#B42318",
-  },
-  retryButton: {
-    marginTop: 12,
-    alignSelf: "flex-start",
-    backgroundColor: "#111111",
-    borderRadius: 10,
+    borderWidth: 1,
+    borderRadius: 12,
     paddingHorizontal: 12,
-    paddingVertical: 8,
+    paddingVertical: 12,
+    fontSize: 15,
   },
-  retryButtonText: {
-    color: "#FFFFFF",
-    fontSize: 14,
+  inviteButton: {
+    marginTop: 16,
+    borderRadius: 12,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 14,
+  },
+  inviteButtonText: {
+    fontSize: 16,
     fontWeight: "600",
   },
   descriptionText: {
     fontSize: 14,
-    color: "#767676",
     textAlign: "center",
   },
   qrContainer: {
     marginTop: 16,
-    backgroundColor: "#FFFFFF",
     borderRadius: 16,
     paddingHorizontal: 16,
     paddingVertical: 48,
@@ -217,7 +218,6 @@ const styles = StyleSheet.create({
   inviteLabel: {
     marginTop: 8,
     fontSize: 14,
-    color: "#767676",
     fontWeight: "500",
   },
   inviteTokenText: {
@@ -227,13 +227,11 @@ const styles = StyleSheet.create({
   },
   newInviteButton: {
     marginTop: 8,
-    backgroundColor: "#000000",
     borderRadius: 10,
     paddingHorizontal: 14,
     paddingVertical: 10,
   },
   newInviteButtonText: {
-    color: "#FFFFFF",
     fontSize: 14,
     fontWeight: "600",
   },

@@ -1,4 +1,6 @@
 import ArrowLeftIcon from "@/assets/icons/ArrowLeftIcon";
+import { useLanguage } from "@/contexts/LanguageContext";
+import { useTheme } from "@/contexts/ThemeContext";
 import { createProject } from "@/services/api";
 import { router, Stack } from "expo-router";
 import { useState } from "react";
@@ -19,10 +21,12 @@ export default function CreateProjectScreen() {
   const [description, setDescription] = useState("");
   const [ndaText, setNdaText] = useState("");
   const [loading, setLoading] = useState(false);
+  const { colors } = useTheme();
+  const { t } = useLanguage();
 
   const onCreateProject = async () => {
     if (!name) {
-      Alert.alert("Error", "Project name is required");
+      Alert.alert(t("error"), t("projectNameRequired"));
       return;
     }
     setLoading(true);
@@ -35,7 +39,7 @@ export default function CreateProjectScreen() {
       });
       router.back();
     } catch (e: any) {
-      Alert.alert("Error", e.message || "Failed to create project");
+      Alert.alert(t("error"), e.message);
     } finally {
       setLoading(false);
     }
@@ -46,58 +50,58 @@ export default function CreateProjectScreen() {
       <Stack.Screen options={{ headerShown: false }} />
       <ScrollView
         showsVerticalScrollIndicator={false}
-        style={styles.background}
+        style={[styles.background, { backgroundColor: colors.background }]}
         contentContainerStyle={styles.scrollContent}
       >
         <View style={styles.container}>
           <View style={styles.headerRow}>
             <Pressable onPress={() => router.back()}>
-              <ArrowLeftIcon />
+              <ArrowLeftIcon color={colors.text} />
             </Pressable>
-            <Text style={styles.pageTitle}>Create Project</Text>
+            <Text style={[styles.pageTitle, { color: colors.text }]}>{t("createProject")}</Text>
           </View>
 
-          <View style={styles.card}>
-            <Text style={styles.label}>Project Name</Text>
+          <View style={[styles.card, { backgroundColor: colors.card }]}>
+            <Text style={[styles.label, { color: colors.text }]}>{t("projectName")}</Text>
             <TextInput
               value={name}
               onChangeText={setName}
               placeholder="Enter project name"
-              placeholderTextColor="#9A9A9A"
-              style={styles.input}
+              placeholderTextColor={colors.placeholder}
+              style={[styles.input, { backgroundColor: colors.inputBg, borderColor: colors.border, color: colors.inputText }]}
             />
 
-            <Text style={[styles.label, styles.sectionSpacing]}>Company</Text>
+            <Text style={[styles.label, styles.sectionSpacing, { color: colors.text }]}>{t("company")}</Text>
             <TextInput
               value={company}
               onChangeText={setCompany}
               placeholder="Company or organization"
-              placeholderTextColor="#9A9A9A"
-              style={styles.input}
+              placeholderTextColor={colors.placeholder}
+              style={[styles.input, { backgroundColor: colors.inputBg, borderColor: colors.border, color: colors.inputText }]}
             />
 
-            <Text style={[styles.label, styles.sectionSpacing]}>
-              Description
+            <Text style={[styles.label, styles.sectionSpacing, { color: colors.text }]}>
+              {t("description")}
             </Text>
             <TextInput
               value={description}
               onChangeText={setDescription}
               placeholder="Project details"
-              placeholderTextColor="#9A9A9A"
-              style={[styles.input, styles.multilineInput]}
+              placeholderTextColor={colors.placeholder}
+              style={[styles.input, styles.multilineInput, { backgroundColor: colors.inputBg, borderColor: colors.border, color: colors.inputText }]}
               multiline
               textAlignVertical="top"
             />
 
-            <Text style={[styles.label, styles.sectionSpacing]}>
-              NDA Text
+            <Text style={[styles.label, styles.sectionSpacing, { color: colors.text }]}>
+              {t("ndaText")}
             </Text>
             <TextInput
               value={ndaText}
               onChangeText={setNdaText}
               placeholder="Non-disclosure agreement text (optional)"
-              placeholderTextColor="#9A9A9A"
-              style={[styles.input, styles.multilineInput]}
+              placeholderTextColor={colors.placeholder}
+              style={[styles.input, styles.multilineInput, { backgroundColor: colors.inputBg, borderColor: colors.border, color: colors.inputText }]}
               multiline
               textAlignVertical="top"
             />
@@ -108,13 +112,14 @@ export default function CreateProjectScreen() {
             disabled={loading}
             style={({ pressed }) => [
               styles.createButton,
+              { backgroundColor: colors.primary },
               pressed && styles.createButtonPressed,
             ]}
           >
             {loading ? (
-              <ActivityIndicator color="#FFFFFF" />
+              <ActivityIndicator color={colors.primaryText} />
             ) : (
-              <Text style={styles.createButtonText}>Create Project</Text>
+              <Text style={[styles.createButtonText, { color: colors.primaryText }]}>{t("createProject")}</Text>
             )}
           </Pressable>
         </View>
@@ -126,7 +131,6 @@ export default function CreateProjectScreen() {
 const styles = StyleSheet.create({
   background: {
     flex: 1,
-    backgroundColor: "#F2F2F2",
   },
   scrollContent: {
     paddingBottom: 24,
@@ -148,7 +152,6 @@ const styles = StyleSheet.create({
   },
   card: {
     marginTop: 16,
-    backgroundColor: "#FFFFFF",
     borderRadius: 16,
     paddingHorizontal: 16,
     paddingVertical: 16,
@@ -156,18 +159,14 @@ const styles = StyleSheet.create({
   label: {
     fontSize: 16,
     fontWeight: "600",
-    color: "#000",
   },
   input: {
     marginTop: 8,
     borderWidth: 1,
-    borderColor: "#E5E5E5",
     borderRadius: 12,
     paddingHorizontal: 12,
     paddingVertical: 12,
     fontSize: 15,
-    color: "#111111",
-    backgroundColor: "#FFFFFF",
   },
   multilineInput: {
     minHeight: 100,
@@ -179,7 +178,6 @@ const styles = StyleSheet.create({
     marginTop: 16,
     marginBottom: 8,
     borderRadius: 12,
-    backgroundColor: "#111111",
     alignItems: "center",
     justifyContent: "center",
     paddingVertical: 14,
@@ -190,6 +188,5 @@ const styles = StyleSheet.create({
   createButtonText: {
     fontSize: 16,
     fontWeight: "600",
-    color: "#FFFFFF",
   },
 });

@@ -1,14 +1,8 @@
+import { useTheme } from "@/contexts/ThemeContext";
 import React from "react";
-import { StyleSheet, View } from "react-native";
+import { View } from "react-native";
 
 export function Separator() {
-  return <View style={styles.separator} />;
+  const { colors } = useTheme();
+  return <View style={{ height: 1, backgroundColor: colors.border, marginTop: 12 }} />;
 }
-
-const styles = StyleSheet.create({
-  separator: {
-    height: 1,
-    backgroundColor: "#E0E0E0",
-    marginTop: 12,
-  },
-});

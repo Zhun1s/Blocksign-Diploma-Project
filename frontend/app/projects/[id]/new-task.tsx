@@ -1,4 +1,6 @@
 import ArrowLeftIcon from "@/assets/icons/ArrowLeftIcon";
+import { useLanguage } from "@/contexts/LanguageContext";
+import { useTheme } from "@/contexts/ThemeContext";
 import { createTask } from "@/services/api";
 import DateTimePicker, {
   DateTimePickerEvent,
@@ -21,6 +23,8 @@ export default function NewTaskScreen() {
   const { id, name } = useLocalSearchParams<{ id?: string; name?: string }>();
   const projectId = Number(id);
   const projectName = name ? `${name}` : "Project";
+  const { colors } = useTheme();
+  const { t } = useLanguage();
 
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
@@ -52,7 +56,7 @@ export default function NewTaskScreen() {
 
   const onCreateTask = async () => {
     if (!title) {
-      Alert.alert("Error", "Task title is required");
+      Alert.alert(t("error"), t("taskTitleRequired"));
       return;
     }
     setLoading(true);
@@ -66,7 +70,7 @@ export default function NewTaskScreen() {
       });
       router.back();
     } catch (e: any) {
-      Alert.alert("Error", e.message || "Failed to create task");
+      Alert.alert(t("error"), e.message);
     } finally {
       setLoading(false);
     }
@@ -77,54 +81,54 @@ export default function NewTaskScreen() {
       <Stack.Screen options={{ headerShown: false }} />
       <ScrollView
         showsVerticalScrollIndicator={false}
-        style={styles.background}
+        style={[styles.background, { backgroundColor: colors.background }]}
         contentContainerStyle={styles.scrollContent}
       >
         <View style={styles.container}>
           <View style={styles.headerRow}>
             <Pressable onPress={() => router.back()}>
-              <ArrowLeftIcon />
+              <ArrowLeftIcon color={colors.text} />
             </Pressable>
-            <Text style={styles.pageTitle}>Create New Task</Text>
+            <Text style={[styles.pageTitle, { color: colors.text }]}>{t("createNewTask")}</Text>
           </View>
 
-          <View style={styles.card}>
-            <Text style={styles.label}>Project</Text>
-            <Text style={styles.projectName}>{projectName}</Text>
+          <View style={[styles.card, { backgroundColor: colors.card }]}>
+            <Text style={[styles.label, { color: colors.text }]}>{t("project")}</Text>
+            <Text style={[styles.projectName, { color: colors.text }]}>{projectName}</Text>
           </View>
 
-          <View style={styles.card}>
-            <Text style={styles.label}>Task Title</Text>
+          <View style={[styles.card, { backgroundColor: colors.card }]}>
+            <Text style={[styles.label, { color: colors.text }]}>{t("taskTitle")}</Text>
             <TextInput
               value={title}
               onChangeText={setTitle}
               placeholder="Enter task title"
-              placeholderTextColor="#9A9A9A"
-              style={styles.input}
+              placeholderTextColor={colors.placeholder}
+              style={[styles.input, { backgroundColor: colors.inputBg, borderColor: colors.border, color: colors.inputText }]}
             />
 
-            <Text style={[styles.label, styles.sectionSpacing]}>
-              Description
+            <Text style={[styles.label, styles.sectionSpacing, { color: colors.text }]}>
+              {t("description")}
             </Text>
             <TextInput
               value={description}
               onChangeText={setDescription}
               placeholder="Task details"
-              placeholderTextColor="#9A9A9A"
-              style={[styles.input, styles.multilineInput]}
+              placeholderTextColor={colors.placeholder}
+              style={[styles.input, styles.multilineInput, { backgroundColor: colors.inputBg, borderColor: colors.border, color: colors.inputText }]}
               multiline
               textAlignVertical="top"
             />
 
-            <Text style={[styles.label, styles.sectionSpacing]}>Deadline</Text>
+            <Text style={[styles.label, styles.sectionSpacing, { color: colors.text }]}>{t("deadline")}</Text>
             <Pressable
               onPress={() => setShowDeadlinePicker((prev) => !prev)}
-              style={styles.input}
+              style={[styles.input, { backgroundColor: colors.inputBg, borderColor: colors.border }]}
             >
               <Text
-                style={deadlineDate ? styles.inputText : styles.placeholderText}
+                style={deadlineDate ? [styles.inputText, { color: colors.inputText }] : [styles.placeholderText, { color: colors.placeholder }]}
               >
-                {deadlineDate ? deadlineLabel : "Select deadline date"}
+                {deadlineDate ? deadlineLabel : t("selectDeadline")}
               </Text>
             </Pressable>
             {showDeadlinePicker && (
@@ -138,24 +142,26 @@ export default function NewTaskScreen() {
               </View>
             )}
 
-            <Text style={[styles.label, styles.sectionSpacing]}>
-              Importance
+            <Text style={[styles.label, styles.sectionSpacing, { color: colors.text }]}>
+              {t("importance")}
             </Text>
             <View style={styles.priorityRow}>
               <Pressable
                 onPress={() => setImportant((prev) => !prev)}
                 style={[
                   styles.priorityChip,
-                  important && styles.priorityChipActive,
+                  { backgroundColor: colors.card, borderColor: colors.border },
+                  important && [styles.priorityChipActive, { backgroundColor: colors.primary, borderColor: colors.primary }],
                 ]}
               >
                 <Text
                   style={[
                     styles.priorityChipText,
-                    important && styles.priorityChipTextActive,
+                    { color: colors.textSecondary },
+                    important && [styles.priorityChipTextActive, { color: colors.primaryText }],
                   ]}
                 >
-                  Important
+                  {t("important")}
                 </Text>
               </Pressable>
             </View>
@@ -166,13 +172,14 @@ export default function NewTaskScreen() {
             disabled={loading}
             style={({ pressed }) => [
               styles.createButton,
+              { backgroundColor: colors.primary },
               pressed && styles.createButtonPressed,
             ]}
           >
             {loading ? (
-              <ActivityIndicator color="#FFFFFF" />
+              <ActivityIndicator color={colors.primaryText} />
             ) : (
-              <Text style={styles.createButtonText}>Create Task</Text>
+              <Text style={[styles.createButtonText, { color: colors.primaryText }]}>{t("createTask")}</Text>
             )}
           </Pressable>
         </View>
@@ -184,7 +191,6 @@ export default function NewTaskScreen() {
 const styles = StyleSheet.create({
   background: {
     flex: 1,
-    backgroundColor: "#F2F2F2",
   },
   scrollContent: {
     paddingBottom: 24,
@@ -206,7 +212,6 @@ const styles = StyleSheet.create({
   },
   card: {
     marginTop: 16,
-    backgroundColor: "#FFFFFF",
     borderRadius: 16,
     paddingHorizontal: 16,
     paddingVertical: 16,
@@ -214,35 +219,28 @@ const styles = StyleSheet.create({
   label: {
     fontSize: 16,
     fontWeight: "600",
-    color: "#000",
   },
   projectName: {
     marginTop: 6,
     fontSize: 22,
     fontWeight: "600",
-    color: "#111111",
   },
   input: {
     marginTop: 8,
     borderWidth: 1,
-    borderColor: "#E5E5E5",
     borderRadius: 12,
     paddingHorizontal: 12,
     paddingVertical: 12,
     fontSize: 15,
-    color: "#111111",
-    backgroundColor: "#FFFFFF",
   },
   multilineInput: {
     minHeight: 100,
   },
   inputText: {
     fontSize: 15,
-    color: "#111111",
   },
   placeholderText: {
     fontSize: 15,
-    color: "#9A9A9A",
   },
   pickerWrap: {
     marginTop: 8,
@@ -259,27 +257,18 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: 16,
-    backgroundColor: "#FFFFFF",
     borderWidth: 1,
-    borderColor: "#DDDDDD",
   },
-  priorityChipActive: {
-    backgroundColor: "#111111",
-    borderColor: "#111111",
-  },
+  priorityChipActive: {},
   priorityChipText: {
     fontSize: 13,
     fontWeight: "600",
-    color: "#333333",
   },
-  priorityChipTextActive: {
-    color: "#FFFFFF",
-  },
+  priorityChipTextActive: {},
   createButton: {
     marginTop: 16,
     marginBottom: 8,
     borderRadius: 12,
-    backgroundColor: "#111111",
     alignItems: "center",
     justifyContent: "center",
     paddingVertical: 14,
@@ -290,6 +279,5 @@ const styles = StyleSheet.create({
   createButtonText: {
     fontSize: 16,
     fontWeight: "600",
-    color: "#FFFFFF",
   },
 });

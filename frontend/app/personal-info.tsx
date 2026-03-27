@@ -1,27 +1,14 @@
 import ArrowLeftIcon from "@/assets/icons/ArrowLeftIcon";
 import { useAuth } from "@/contexts/AuthContext";
+import { useLanguage } from "@/contexts/LanguageContext";
+import { useTheme } from "@/contexts/ThemeContext";
 import { router, Stack } from "expo-router";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 
-function InfoRow({
-  label,
-  value,
-  border = true,
-}: {
-  label: string;
-  value: string;
-  border?: boolean;
-}) {
-  return (
-    <View style={[styles.infoRow, border && styles.infoRowBorder]}>
-      <Text style={styles.infoLabel}>{label}</Text>
-      <Text style={styles.infoValue}>{value || "—"}</Text>
-    </View>
-  );
-}
-
 export default function PersonalInfoScreen() {
   const { user } = useAuth();
+  const { colors } = useTheme();
+  const { t } = useLanguage();
 
   const initial = user?.fullName?.charAt(0)?.toUpperCase() || "?";
   const joinedDate = user?.createdAt
@@ -37,39 +24,40 @@ export default function PersonalInfoScreen() {
       <Stack.Screen options={{ headerShown: false }} />
       <ScrollView
         showsVerticalScrollIndicator={false}
-        style={styles.background}
+        style={[styles.background, { backgroundColor: colors.background }]}
         contentContainerStyle={styles.scrollContent}
       >
         <View style={styles.container}>
           <View style={styles.headerRow}>
             <Pressable onPress={() => router.back()}>
-              <ArrowLeftIcon />
+              <ArrowLeftIcon color={colors.text} />
             </Pressable>
-            <Text style={styles.pageTitle}>Personal Info</Text>
+            <Text style={[styles.pageTitle, { color: colors.text }]}>{t("personalInfo")}</Text>
           </View>
 
           <View style={styles.avatarContainer}>
-            <View style={styles.avatar}>
-              <Text style={styles.avatarText}>{initial}</Text>
+            <View style={[styles.avatar, { backgroundColor: colors.avatarBg }]}>
+              <Text style={[styles.avatarText, { color: colors.avatarText }]}>{initial}</Text>
             </View>
-            <Text style={styles.nameText}>{user?.fullName || "User"}</Text>
-            <Text style={styles.emailSubtext}>{user?.email || ""}</Text>
+            <Text style={[styles.nameText, { color: colors.text }]}>{user?.fullName || "User"}</Text>
+            <Text style={[styles.emailSubtext, { color: colors.textSecondary }]}>{user?.email || ""}</Text>
           </View>
 
-          <Text style={styles.sectionLabel}>Account Details</Text>
-          <View style={styles.card}>
-            <InfoRow label="Full Name" value={user?.fullName || ""} />
-            <InfoRow label="Email" value={user?.email || ""} />
-            <InfoRow label="Role" value={user?.role || "member"} />
-            <InfoRow label="Joined" value={joinedDate} border={false} />
+          <Text style={[styles.sectionLabel, { color: colors.textSecondary }]}>{t("accountDetails")}</Text>
+          <View style={[styles.card, { backgroundColor: colors.card }]}>
+            <InfoRow label={t("fullName")} value={user?.fullName || ""} colors={colors} />
+            <InfoRow label={t("email")} value={user?.email || ""} colors={colors} />
+            <InfoRow label={t("role")} value={user?.role || "member"} colors={colors} />
+            <InfoRow label={t("joinedDate")} value={joinedDate} border={false} colors={colors} />
           </View>
 
-          <Text style={styles.sectionLabel}>Security</Text>
-          <View style={styles.card}>
+          <Text style={[styles.sectionLabel, { color: colors.textSecondary }]}>{t("security")}</Text>
+          <View style={[styles.card, { backgroundColor: colors.card }]}>
             <InfoRow
-              label="Password"
+              label={t("password")}
               value="••••••••"
               border={false}
+              colors={colors}
             />
           </View>
         </View>
@@ -78,10 +66,28 @@ export default function PersonalInfoScreen() {
   );
 }
 
+function InfoRow({
+  label,
+  value,
+  border = true,
+  colors,
+}: {
+  label: string;
+  value: string;
+  border?: boolean;
+  colors: any;
+}) {
+  return (
+    <View style={[styles.infoRow, border && [styles.infoRowBorder, { borderBottomColor: colors.border }]]}>
+      <Text style={[styles.infoLabel, { color: colors.text }]}>{label}</Text>
+      <Text style={[styles.infoValue, { color: colors.textSecondary }]}>{value || "—"}</Text>
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
   background: {
     flex: 1,
-    backgroundColor: "#F2F2F2",
   },
   scrollContent: {
     paddingBottom: 24,
@@ -107,14 +113,12 @@ const styles = StyleSheet.create({
     width: 100,
     height: 100,
     borderRadius: 50,
-    backgroundColor: "#DEDEDE",
     alignItems: "center",
     justifyContent: "center",
   },
   avatarText: {
     fontSize: 40,
     fontWeight: "700",
-    color: "#888",
   },
   nameText: {
     fontSize: 22,
@@ -123,7 +127,6 @@ const styles = StyleSheet.create({
   },
   emailSubtext: {
     fontSize: 15,
-    color: "#616161",
     marginTop: 4,
   },
   sectionLabel: {
@@ -131,11 +134,9 @@ const styles = StyleSheet.create({
     marginLeft: 8,
     fontSize: 14,
     fontWeight: "600",
-    color: "#6E6E6E",
   },
   card: {
     marginTop: 12,
-    backgroundColor: "#FFFFFF",
     borderRadius: 16,
     paddingHorizontal: 16,
     paddingVertical: 4,
@@ -148,15 +149,12 @@ const styles = StyleSheet.create({
   },
   infoRowBorder: {
     borderBottomWidth: 0.5,
-    borderBottomColor: "#E5E5E5",
   },
   infoLabel: {
     fontSize: 16,
     fontWeight: "600",
-    color: "#000",
   },
   infoValue: {
     fontSize: 16,
-    color: "#616161",
   },
 });

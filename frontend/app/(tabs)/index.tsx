@@ -16,6 +16,17 @@ import {
 } from "react-native";
 import { TasksByProjectSection } from "../../components/taskrow";
 import { getProjects, getTasks, type Project, type Task } from "@/services/api";
+import { TaskPopup } from "@/components/TaskPopup";
+import { useLanguage } from "@/contexts/LanguageContext";
+import { useTheme } from "@/contexts/ThemeContext";
+import { useFocusEffect } from "expo-router";
+
+const STATUS_MAP: Record<string, string> = {
+  in_progress: "In Progress",
+  not_started: "Not Started",
+  done: "Done",
+  missed: "Missed",
+};
 
 type TaskRow = {
   id: string;
@@ -23,6 +34,7 @@ type TaskRow = {
   description?: string;
   deadline?: string;
   important?: boolean;
+  status?: string;
 };
 
 type Section = {
@@ -62,6 +74,7 @@ async function buildSections(): Promise<Section[]> {
             description: t.description || undefined,
             deadline: formatDeadline(t.deadline),
             important: t.important,
+            status: STATUS_MAP[t.status] || t.status,
           })),
         });
       }
@@ -144,6 +157,8 @@ function WeekItem({
 }
 
 export default function Tab() {
+  const { colors } = useTheme();
+  const { t } = useLanguage();
   const now = useMemo(() => new Date(), []);
 
   const day = now.toLocaleDateString("en-US", { weekday: "short" });
@@ -170,6 +185,7 @@ export default function Tab() {
   const [sections, setSections] = useState<Section[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [selectedTask, setSelectedTask] = useState<any>(null);
 
   const load = useCallback(async () => {
     try {
@@ -184,16 +200,18 @@ export default function Tab() {
     }
   }, []);
 
-  useEffect(() => {
-    load();
-  }, [load]);
+  useFocusEffect(
+    useCallback(() => {
+      load();
+    }, [load]),
+  );
 
   return (
-    <ScrollView showsVerticalScrollIndicator={false} style={styles.background}>
+    <ScrollView showsVerticalScrollIndicator={false} style={{ flex: 1, backgroundColor: colors.background }}>
       <View style={styles.container}>
         <View style={styles.headerRow}>
-          <Text style={styles.textDay}>{day}</Text>
-          <Text style={styles.textMonth}>{monthYear}</Text>
+          <Text style={[styles.textDay, { color: colors.text }]}>{day}</Text>
+          <Text style={[styles.textMonth, { color: colors.textSecondary }]}>{monthYear}</Text>
         </View>
         <View>
           <FlatList
@@ -202,7 +220,7 @@ export default function Tab() {
             scrollEnabled={false}
             showsHorizontalScrollIndicator={false}
             keyExtractor={(item) => item.key}
-            contentContainerStyle={styles.weekRow}
+            contentContainerStyle={[styles.weekRow, { backgroundColor: colors.card }]}
             renderItem={({ item }) => {
               const isSelected =
                 item.date.toDateString() === selectedDate.toDateString();
@@ -220,11 +238,16 @@ export default function Tab() {
         <TasksByProjectSection
           sections={sections}
           onRefresh={load}
-          onTaskPress={() => {}}
+          onTaskPress={(task) => setSelectedTask(task)}
           setError={setError}
           setLoading={setLoading}
         />
       </View>
+      <TaskPopup
+        task={selectedTask}
+        visible={!!selectedTask}
+        onClose={() => setSelectedTask(null)}
+      />
     </ScrollView>
   );
 }

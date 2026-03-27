@@ -5,6 +5,9 @@ import FileBlankIcon from "@/assets/icons/FileBlankIcon";
 import { DocumentList } from "@/components/documentlist";
 import { ParticipantList } from "@/components/participantlist";
 import { TaskItem } from "@/components/taskitem";
+import { TaskPopup } from "@/components/TaskPopup";
+import { useLanguage } from "@/contexts/LanguageContext";
+import { useTheme } from "@/contexts/ThemeContext";
 import {
   deleteTask,
   getFiles,
@@ -94,11 +97,14 @@ function timeAgo(dateStr: string): string {
 export default function ProjectDetails() {
   const { id, name } = useLocalSearchParams<{ id?: string; name?: string }>();
   const projectId = Number(id);
+  const { colors } = useTheme();
+  const { t } = useLanguage();
   const [projectName, setProjectName] = useState(name || "Project");
   const [projectDescription, setProjectDescription] = useState("");
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [active, setActive] = useState<Filter>("All");
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [selectedTask, setSelectedTask] = useState<any>(null);
 
   const [tasks, setTasks] = useState<Task[]>([]);
   const [members, setMembers] = useState<Member[]>([]);
@@ -148,49 +154,26 @@ export default function ProjectDetails() {
     }, [loadData]),
   );
 
-  const handleTaskPress = (task: { id: string; status?: string }) => {
-    const currentStatus = task.status || "Not Started";
-    const statuses = ["Not Started", "In Progress", "Done", "Missed"];
+  const handleTaskPress = (task: { id: string; status?: string; title?: string; description?: string; deadline?: string; important?: boolean }) => {
+    setSelectedTask(task);
+  };
 
-    Alert.alert("Task Actions", `Status: ${currentStatus}`, [
-      ...statuses
-        .filter((s) => s !== currentStatus)
-        .map((s) => ({
-          text: `Mark as ${s}`,
-          onPress: async () => {
-            try {
-              await updateTask(projectId, Number(task.id), {
-                status: REVERSE_STATUS[s],
-              });
-              loadData();
-            } catch (e: any) {
-              Alert.alert("Error", e.message);
-            }
-          },
-        })),
-      {
-        text: "Delete",
-        style: "destructive" as const,
-        onPress: () => {
-          Alert.alert("Delete task?", "This cannot be undone.", [
-            { text: "Cancel", style: "cancel" },
-            {
-              text: "Delete",
-              style: "destructive",
-              onPress: async () => {
-                try {
-                  await deleteTask(projectId, Number(task.id));
-                  loadData();
-                } catch (e: any) {
-                  Alert.alert("Error", e.message);
-                }
-              },
-            },
-          ]);
-        },
-      },
-      { text: "Cancel", style: "cancel" as const },
-    ]);
+  const handleChangeStatus = async (taskId: string, status: string) => {
+    try {
+      await updateTask(projectId, Number(taskId), { status });
+      loadData();
+    } catch (e: any) {
+      Alert.alert(t("error"), e.message);
+    }
+  };
+
+  const handleDeleteTask = async (taskId: string) => {
+    try {
+      await deleteTask(projectId, Number(taskId));
+      loadData();
+    } catch (e: any) {
+      Alert.alert(t("error"), e.message);
+    }
   };
 
   const handleDocumentPress = (doc: { id: string; title: string }) => {
@@ -214,7 +197,7 @@ export default function ProjectDetails() {
       });
       loadData();
     } catch (e: any) {
-      Alert.alert("Upload failed", e.message);
+      Alert.alert(t("error"), e.message);
     } finally {
       setUploading(false);
     }
@@ -222,7 +205,7 @@ export default function ProjectDetails() {
 
   const handleCreateReport = async () => {
     if (!reportTitle) {
-      Alert.alert("Error", "Report title is required");
+      Alert.alert(t("error"), t("taskTitleRequired"));
       return;
     }
     try {
@@ -235,7 +218,7 @@ export default function ProjectDetails() {
       setShowReportForm(false);
       loadData();
     } catch (e: any) {
-      Alert.alert("Error", e.message);
+      Alert.alert(t("error"), e.message);
     }
   };
 
@@ -281,7 +264,7 @@ export default function ProjectDetails() {
       <View
         style={[
           styles.screen,
-          { justifyContent: "center", alignItems: "center" },
+          { justifyContent: "center", alignItems: "center", backgroundColor: colors.background },
         ]}
       >
         <ActivityIndicator size="large" />
@@ -294,7 +277,7 @@ export default function ProjectDetails() {
       <Stack.Screen options={{ headerShown: false }} />
       <ScrollView
         showsVerticalScrollIndicator={false}
-        style={styles.background}
+        style={[styles.background, { backgroundColor: colors.background }]}
       >
         <View style={styles.container}>
           {isMenuOpen ? (
@@ -305,17 +288,17 @@ export default function ProjectDetails() {
           ) : null}
           <View style={styles.headerRow}>
             <Pressable onPress={() => router.back()}>
-              <ArrowLeftIcon />
+              <ArrowLeftIcon color={colors.text} />
             </Pressable>
-            <Text style={styles.projectName}>{projectName}</Text>
+            <Text style={[styles.projectName, { color: colors.text }]}>{projectName}</Text>
           </View>
           <SegmentedControl
-            values={["General", "Tasks", "Documents"]}
+            values={[t("general"), t("tasks"), t("documents")]}
             selectedIndex={selectedIndex}
             onChange={(event) => {
               setSelectedIndex(event.nativeEvent.selectedSegmentIndex);
             }}
-            fontStyle={styles.segmentedControlFont}
+            fontStyle={[styles.segmentedControlFont, { color: colors.textSecondary }]}
             activeFontStyle={styles.segmentedControlActiveFont}
             style={[styles.segmentedControl, { borderRadius: 0 }]}
             tabStyle={{ borderRadius: 1 }}
@@ -323,17 +306,17 @@ export default function ProjectDetails() {
           {/* ── General Tab ── */}
           {selectedIndex === 0 && (
             <View>
-              <View style={styles.descriptionContainer}>
+              <View style={[styles.descriptionContainer, { backgroundColor: colors.card }]}>
                 <View style={styles.headerRow}>
-                  <ArrowLeftIcon />
-                  <Text style={{ fontSize: 16, fontWeight: "600" }}>
-                    Project Description
+                  <ArrowLeftIcon color={colors.text} />
+                  <Text style={{ fontSize: 16, fontWeight: "600", color: colors.text }}>
+                    {t("projectDescription")}
                   </Text>
                 </View>
                 <Text
                   style={{
                     fontSize: 14,
-                    color: "#767676",
+                    color: colors.textTertiary,
                     textAlign: "justify",
                   }}
                 >
@@ -349,8 +332,8 @@ export default function ProjectDetails() {
                   marginTop: 16,
                 }}
               >
-                <Text style={{ fontSize: 20, fontWeight: "600" }}>
-                  Participants
+                <Text style={{ fontSize: 20, fontWeight: "600", color: colors.text }}>
+                  {t("participants")}
                 </Text>
                 <Pressable
                   onPress={() => {
@@ -360,10 +343,10 @@ export default function ProjectDetails() {
                     });
                   }}
                 >
-                  <View style={styles.addParticipantButton}>
-                    <AddPlusIcon height={24} width={24} />
-                    <Text style={{ fontSize: 14, fontWeight: "500" }}>
-                      Add Participant
+                  <View style={[styles.addParticipantButton, { backgroundColor: colors.card }]}>
+                    <AddPlusIcon height={24} width={24} color={colors.text} />
+                    <Text style={{ fontSize: 14, fontWeight: "500", color: colors.text }}>
+                      {t("addParticipant")}
                     </Text>
                   </View>
                 </Pressable>
@@ -384,60 +367,60 @@ export default function ProjectDetails() {
                   marginTop: 24,
                 }}
               >
-                <Text style={{ fontSize: 20, fontWeight: "600" }}>Reports</Text>
+                <Text style={{ fontSize: 20, fontWeight: "600", color: colors.text }}>{t("reports")}</Text>
                 <Pressable onPress={() => setShowReportForm(!showReportForm)}>
-                  <View style={styles.addParticipantButton}>
-                    <AddPlusIcon height={24} width={24} />
-                    <Text style={{ fontSize: 14, fontWeight: "500" }}>
-                      New Report
+                  <View style={[styles.addParticipantButton, { backgroundColor: colors.card }]}>
+                    <AddPlusIcon height={24} width={24} color={colors.text} />
+                    <Text style={{ fontSize: 14, fontWeight: "500", color: colors.text }}>
+                      {t("newReport")}
                     </Text>
                   </View>
                 </Pressable>
               </View>
 
               {showReportForm && (
-                <View style={styles.reportForm}>
+                <View style={[styles.reportForm, { backgroundColor: colors.card }]}>
                   <TextInput
                     value={reportTitle}
                     onChangeText={setReportTitle}
                     placeholder="Report title"
-                    placeholderTextColor="#9A9A9A"
-                    style={styles.reportInput}
+                    placeholderTextColor={colors.placeholder}
+                    style={[styles.reportInput, { borderColor: colors.border, color: colors.inputText }]}
                   />
                   <TextInput
                     value={reportContent}
                     onChangeText={setReportContent}
                     placeholder="Report content"
-                    placeholderTextColor="#9A9A9A"
-                    style={[styles.reportInput, { minHeight: 80 }]}
+                    placeholderTextColor={colors.placeholder}
+                    style={[styles.reportInput, { minHeight: 80, borderColor: colors.border, color: colors.inputText }]}
                     multiline
                     textAlignVertical="top"
                   />
                   <Pressable
                     onPress={handleCreateReport}
-                    style={styles.reportSubmit}
+                    style={[styles.reportSubmit, { backgroundColor: colors.primary }]}
                   >
-                    <Text style={{ color: "#FFF", fontWeight: "600" }}>
-                      Submit Report
+                    <Text style={{ color: colors.primaryText, fontWeight: "600" }}>
+                      {t("submitReport")}
                     </Text>
                   </Pressable>
                 </View>
               )}
 
               {reports.length > 0 && (
-                <View style={styles.reportsContainer}>
+                <View style={[styles.reportsContainer, { backgroundColor: colors.card }]}>
                   {reports.map((r) => (
-                    <View key={r.id} style={styles.reportItem}>
-                      <Text style={{ fontWeight: "600", fontSize: 15 }}>
+                    <View key={r.id} style={[styles.reportItem, { borderBottomColor: colors.border }]}>
+                      <Text style={{ fontWeight: "600", fontSize: 15, color: colors.text }}>
                         {r.title}
                       </Text>
                       <Text
-                        style={{ color: "#767676", fontSize: 13, marginTop: 4 }}
+                        style={{ color: colors.textTertiary, fontSize: 13, marginTop: 4 }}
                       >
                         {r.content}
                       </Text>
                       <Text
-                        style={{ color: "#AAAAAA", fontSize: 11, marginTop: 4 }}
+                        style={{ color: colors.textSecondary, fontSize: 11, marginTop: 4 }}
                       >
                         {new Date(r.createdAt).toLocaleDateString()}
                       </Text>
@@ -469,8 +452,8 @@ export default function ProjectDetails() {
                         borderWidth: 1,
                         borderColor: isActive
                           ? BORDER_BY_FILTER[label]
-                          : "#FFF",
-                        backgroundColor: "white",
+                          : colors.card,
+                        backgroundColor: colors.card,
                         flexDirection: "row",
                         alignItems: "center",
                         gap: 8,
@@ -487,7 +470,7 @@ export default function ProjectDetails() {
                       />
                       <Text
                         style={{
-                          color: "#000000",
+                          color: colors.text,
                           fontWeight: "600",
                           fontSize: 16,
                         }}
@@ -499,7 +482,7 @@ export default function ProjectDetails() {
                 })}
               </ScrollView>
 
-              <View style={styles.tasksContainer}>
+              <View style={[styles.tasksContainer, { backgroundColor: colors.card }]}>
                 {visibleTasks.map((task, idx) => (
                   <TaskItem
                     key={task.id}
@@ -509,8 +492,8 @@ export default function ProjectDetails() {
                   />
                 ))}
                 {visibleTasks.length === 0 && (
-                  <Text style={styles.emptyText}>
-                    No tasks for this filter
+                  <Text style={[styles.emptyText, { color: colors.textTertiary }]}>
+                    {t("noTasks")}
                   </Text>
                 )}
               </View>
@@ -529,15 +512,15 @@ export default function ProjectDetails() {
                 <Pressable
                   onPress={handleFileUpload}
                   disabled={uploading}
-                  style={styles.addParticipantButton}
+                  style={[styles.addParticipantButton, { backgroundColor: colors.card }]}
                 >
                   {uploading ? (
                     <ActivityIndicator size="small" />
                   ) : (
                     <>
-                      <AddPlusIcon height={24} width={24} />
-                      <Text style={{ fontSize: 14, fontWeight: "500" }}>
-                        Upload File
+                      <AddPlusIcon height={24} width={24} color={colors.text} />
+                      <Text style={{ fontSize: 14, fontWeight: "500", color: colors.text }}>
+                        {t("uploadFile")}
                       </Text>
                     </>
                   )}
@@ -549,9 +532,9 @@ export default function ProjectDetails() {
               />
               {documents.length === 0 && (
                 <Text
-                  style={[styles.emptyText, { textAlign: "center", marginTop: 24 }]}
+                  style={[styles.emptyText, { textAlign: "center", marginTop: 24, color: colors.textTertiary }]}
                 >
-                  No documents yet
+                  {t("noDocuments")}
                 </Text>
               )}
             </View>
@@ -564,13 +547,13 @@ export default function ProjectDetails() {
           hitSlop={8}
           style={styles.fabAnchor}
         >
-          <GlassView style={styles.fabButton} isInteractive>
-            <AddPlusIcon />
+          <GlassView style={[styles.fabButton, { shadowColor: colors.shadow }]} isInteractive>
+            <AddPlusIcon color={colors.text} />
           </GlassView>
         </Pressable>
       )}
       {isMenuOpen ? (
-        <View style={styles.menuCard}>
+        <View style={[styles.menuCard, { backgroundColor: colors.card, shadowColor: colors.shadow }]}>
           <Pressable
             onPress={() => {
               setIsMenuOpen(false);
@@ -581,27 +564,33 @@ export default function ProjectDetails() {
             }}
             style={styles.menuItem}
           >
-            <NewTaskIcon />
-            <Text style={styles.menuItemText}>Create new task</Text>
+            <NewTaskIcon color={colors.text} />
+            <Text style={[styles.menuItemText, { color: colors.text }]}>{t("createNewTask")}</Text>
           </Pressable>
         </View>
       ) : null}
+      <TaskPopup
+        task={selectedTask}
+        visible={!!selectedTask}
+        onClose={() => setSelectedTask(null)}
+        onChangeStatus={handleChangeStatus}
+        onDelete={handleDeleteTask}
+      />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   screen: { flex: 1 },
-  background: { flex: 1, backgroundColor: "#F2F2F2" },
+  background: { flex: 1 },
   container: { flex: 1, marginTop: 100, marginHorizontal: 16 },
   headerRow: { flexDirection: "row", alignItems: "center", gap: 8 },
   projectName: { fontSize: 32, fontWeight: "bold" },
   segmentedControl: { height: 48, marginTop: 24, width: "100%" },
-  segmentedControlFont: { fontSize: 16, fontWeight: "700", color: "#616161" },
+  segmentedControlFont: { fontSize: 16, fontWeight: "700" },
   segmentedControlActiveFont: { fontSize: 16, fontWeight: "700" },
   descriptionContainer: {
     width: "100%",
-    backgroundColor: "#FFFFFF",
     borderRadius: 16,
     paddingHorizontal: 16,
     paddingVertical: 12,
@@ -610,20 +599,18 @@ const styles = StyleSheet.create({
   },
   tasksContainer: {
     marginTop: 16,
-    backgroundColor: "#FFFFFF",
     borderRadius: 16,
     paddingHorizontal: 16,
     paddingVertical: 8,
     marginBottom: 24,
   },
-  emptyText: { paddingVertical: 12, color: "#767676", fontSize: 14, fontWeight: "500" },
+  emptyText: { paddingVertical: 12, fontSize: 14, fontWeight: "500" },
   addParticipantButton: {
     flexDirection: "row",
     alignItems: "center",
     gap: 8,
     paddingHorizontal: 8,
     paddingVertical: 4,
-    backgroundColor: "#fff",
     borderRadius: 8,
   },
   fabAnchor: { position: "absolute", right: 16, bottom: 24, zIndex: 20 },
@@ -632,7 +619,6 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     borderRadius: 180,
     padding: 12,
-    shadowColor: "#000",
     shadowOffset: { width: 1, height: 4 },
     shadowOpacity: 0.15,
     shadowRadius: 4,
@@ -651,13 +637,11 @@ const styles = StyleSheet.create({
     position: "absolute",
     right: 16,
     bottom: 90,
-    backgroundColor: "#FFFFFF",
     borderRadius: 16,
     paddingVertical: 8,
     paddingHorizontal: 16,
     minWidth: 170,
     zIndex: 11,
-    shadowColor: "#000",
     shadowOffset: { width: 1, height: 4 },
     shadowOpacity: 0.15,
     shadowRadius: 4,
@@ -667,29 +651,24 @@ const styles = StyleSheet.create({
   menuItemText: { fontSize: 15, fontWeight: "600" },
   reportForm: {
     marginTop: 12,
-    backgroundColor: "#FFF",
     borderRadius: 16,
     padding: 16,
     gap: 10,
   },
   reportInput: {
     borderWidth: 1,
-    borderColor: "#E5E5E5",
     borderRadius: 12,
     paddingHorizontal: 12,
     paddingVertical: 10,
     fontSize: 14,
-    color: "#111",
   },
   reportSubmit: {
-    backgroundColor: "#111",
     borderRadius: 12,
     alignItems: "center",
     paddingVertical: 12,
   },
   reportsContainer: {
     marginTop: 12,
-    backgroundColor: "#FFF",
     borderRadius: 16,
     padding: 16,
     gap: 12,
@@ -697,7 +676,6 @@ const styles = StyleSheet.create({
   },
   reportItem: {
     borderBottomWidth: 0.5,
-    borderBottomColor: "#E5E5E5",
     paddingBottom: 12,
   },
 });

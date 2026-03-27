@@ -1,6 +1,8 @@
 import ArrowLeftIcon from "@/assets/icons/ArrowLeftIcon";
 import ArrowRightIcon from "@/assets/icons/ArrowRightIcon";
 import { useAuth } from "@/contexts/AuthContext";
+import { useLanguage } from "@/contexts/LanguageContext";
+import { useTheme } from "@/contexts/ThemeContext";
 import { Image } from "expo-image";
 import { router } from "expo-router";
 import {
@@ -21,32 +23,35 @@ function SettingRow({
   onPress: () => void;
   border?: boolean;
 }) {
+  const { colors } = useTheme();
   return (
     <Pressable
       onPress={onPress}
       style={({ pressed }) => [
         styles.settingItem,
-        border && styles.settingItemBorder,
-        pressed && styles.settingItemHover,
+        border && [styles.settingItemBorder, { borderBottomColor: colors.border }],
+        pressed && { backgroundColor: colors.hover },
       ]}
     >
       <View style={styles.settingRow}>
-        <ArrowLeftIcon />
-        <Text style={styles.settingText}>{label}</Text>
+        <ArrowLeftIcon color={colors.text} />
+        <Text style={[styles.settingText, { color: colors.text }]}>{label}</Text>
       </View>
-      <ArrowRightIcon />
+      <ArrowRightIcon color={colors.textSecondary} />
     </Pressable>
   );
 }
 
 export default function Profile() {
   const { user, logout } = useAuth();
+  const { colors } = useTheme();
+  const { t } = useLanguage();
 
   const onExitPress = () => {
-    Alert.alert("Exit account", "Are you sure you want to exit?", [
-      { text: "Cancel", style: "cancel" },
+    Alert.alert(t("exitAccount"), t("exitConfirm"), [
+      { text: t("cancel"), style: "cancel" },
       {
-        text: "Exit",
+        text: t("exit"),
         style: "destructive",
         onPress: async () => {
           await logout();
@@ -60,14 +65,16 @@ export default function Profile() {
     router.push("/personal-info");
   };
 
-  const comingSoon = (feature: string) => {
-    Alert.alert(feature, "This feature is coming soon.");
-  };
+  const openLanguage = () => router.push("/settings/language");
+  const openMode = () => router.push("/settings/mode");
+  const openNotifications = () => router.push("/settings/notifications");
+  const openFeedback = () => router.push("/settings/feedback");
+  const openAccount = () => router.push("/settings/account");
 
   const initial = user?.fullName?.charAt(0)?.toUpperCase() || "?";
 
   return (
-    <ScrollView showsVerticalScrollIndicator={false} style={styles.background}>
+    <ScrollView showsVerticalScrollIndicator={false} style={{ flex: 1, backgroundColor: colors.background }}>
       <View style={styles.container}>
         <View style={styles.headerRow}>
           <Image
@@ -76,44 +83,31 @@ export default function Profile() {
             contentFit="contain"
           />
           <Pressable onPress={onExitPress} hitSlop={8}>
-            <ArrowLeftIcon />
+            <ArrowLeftIcon color={colors.text} />
           </Pressable>
         </View>
         <View style={styles.profileData}>
-          <View style={styles.profileAvatar}>
-            <Text style={styles.avatarText}>{initial}</Text>
+          <View style={[styles.profileAvatar, { backgroundColor: colors.avatarBg }]}>
+            <Text style={[styles.avatarText, { color: colors.avatarText }]}>{initial}</Text>
           </View>
-          <Text style={styles.profileName}>{user?.fullName || "User"}</Text>
-          <Text style={styles.profileEmail}>{user?.email || ""}</Text>
+          <Text style={[styles.profileName, { color: colors.text }]}>{user?.fullName || "User"}</Text>
+          <Text style={[styles.profileEmail, { color: colors.textSecondary }]}>{user?.email || ""}</Text>
         </View>
 
-        <Text style={styles.sectionLabel}>General</Text>
-        <View style={styles.settingsContainer}>
-          <SettingRow label="Personal Info" onPress={showPersonalInfo} />
-          <SettingRow
-            label="Language"
-            onPress={() => comingSoon("Language")}
-          />
-          <SettingRow
-            label="Mode"
-            onPress={() => comingSoon("Mode")}
-            border={false}
-          />
+        <Text style={[styles.sectionLabel, { color: colors.textSecondary }]}>{t("general")}</Text>
+        <View style={[styles.settingsContainer, { backgroundColor: colors.card }]}>
+          <SettingRow label={t("personalInfo")} onPress={showPersonalInfo} />
+          <SettingRow label={t("language")} onPress={openLanguage} />
+          <SettingRow label={t("mode")} onPress={openMode} border={false} />
         </View>
 
-        <Text style={styles.sectionLabel}>Content & Activity</Text>
-        <View style={styles.settingsContainer}>
+        <Text style={[styles.sectionLabel, { color: colors.textSecondary }]}>{t("contentActivity")}</Text>
+        <View style={[styles.settingsContainer, { backgroundColor: colors.card }]}>
+          <SettingRow label={t("notifications")} onPress={openNotifications} />
+          <SettingRow label={t("feedback")} onPress={openFeedback} />
           <SettingRow
-            label="Notifications"
-            onPress={() => comingSoon("Notifications")}
-          />
-          <SettingRow
-            label="Feedback"
-            onPress={() => comingSoon("Feedback")}
-          />
-          <SettingRow
-            label="Account Settings"
-            onPress={() => comingSoon("Account Settings")}
+            label={t("accountSettings")}
+            onPress={openAccount}
             border={false}
           />
         </View>

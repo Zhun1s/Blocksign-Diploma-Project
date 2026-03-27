@@ -1,4 +1,5 @@
 import MoreDotsVerticalIcon from "@/assets/icons/MoreDotsVerticalIcon";
+import { useTheme } from "@/contexts/ThemeContext";
 import React from "react";
 import { Image, Pressable, StyleSheet, Text, View } from "react-native";
 
@@ -16,8 +17,10 @@ export function DocumentItem({
   document: Document;
   onPress: (document: Document) => void;
 }) {
+  const { colors } = useTheme();
+
   return (
-    <Pressable onPress={() => onPress(document)} style={styles.card}>
+    <Pressable onPress={() => onPress(document)} style={[styles.card, { backgroundColor: colors.card }]}>
       <View style={styles.documentInfoRow}>
         <Image
           source={require("../assets/images/PDF Icon.png")}
@@ -25,9 +28,9 @@ export function DocumentItem({
           resizeMode="contain"
         />
         <View>
-          <Text style={styles.title}>{document.title}</Text>
+          <Text style={[styles.title, { color: colors.text }]}>{document.title}</Text>
           {(document.size || document.uploadedAt) && (
-            <Text style={styles.meta}>
+            <Text style={[styles.meta, { color: colors.textTertiary }]}>
               {document.size ?? ""}
               {document.size && document.uploadedAt ? " - " : ""}
               {document.uploadedAt ?? ""}
@@ -35,7 +38,6 @@ export function DocumentItem({
           )}
         </View>
       </View>
-
       <MoreDotsVerticalIcon />
     </Pressable>
   );
@@ -43,7 +45,6 @@ export function DocumentItem({
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: "#FFFFFF",
     borderRadius: 16,
     paddingHorizontal: 16,
     paddingVertical: 12,
@@ -52,25 +53,8 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     marginBottom: 12,
   },
-  documentInfoRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-    flex: 1,
-  },
-  documentPreview: {
-    width: 44,
-    height: 56,
-  },
-  title: {
-    fontSize: 16,
-    fontWeight: "600",
-    color: "#111111",
-  },
-  meta: {
-    marginTop: 4,
-    fontSize: 13,
-    color: "#767676",
-    fontWeight: "500",
-  },
+  documentInfoRow: { flexDirection: "row", alignItems: "center", gap: 12, flex: 1 },
+  documentPreview: { width: 44, height: 56 },
+  title: { fontSize: 16, fontWeight: "600" },
+  meta: { marginTop: 4, fontSize: 13, fontWeight: "500" },
 });
