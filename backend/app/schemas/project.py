@@ -38,5 +38,9 @@ class ProjectMemberDetailOut(CamelModel):
 
 
 class InviteRequest(BaseModel):
-    email: str
+    email: str | None = None
     role: str = "member"
+
+
+class InviteClaimRequest(BaseModel):
+    token: str

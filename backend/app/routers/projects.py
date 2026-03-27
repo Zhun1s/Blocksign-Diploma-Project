@@ -11,7 +11,13 @@ from app.dependencies import get_current_user
 from app.models.user import User
 from app.models.project import Project, ProjectMember
 from app.models.qr_token import QRToken
-from app.schemas.project import ProjectCreate, ProjectOut, ProjectMemberDetailOut, InviteRequest
+from app.schemas.project import (
+    ProjectCreate,
+    ProjectOut,
+    ProjectMemberDetailOut,
+    InviteRequest,
+    InviteClaimRequest,
+)
 from app.services.ipfs import upload_to_ipfs
 
 router = APIRouter(prefix="/projects", tags=["Projects"])
@@ -103,7 +109,7 @@ async def get_project(
 @router.post(
     "/{project_id}/invite",
     summary="Пригласить пользователя",
-    description="Генерирует одноразовый QR-токен (24ч) для приглашённого пользователя. Доступно только owner/manager.",
+    description="Генерирует одноразовый QR-токен (24ч) для приглашения в проект. Доступно только owner/manager.",
 )
 async def invite_user(
     project_id: int,
@@ -122,40 +128,74 @@ async def invite_user(
     if not caller_member or caller_member.role not in ("owner", "manager"):
         raise HTTPException(status_code=403, detail="Only owner/manager can invite")
 
-    # Find invited user
-    invited_result = await db.execute(select(User).where(User.email == data.email))
-    invited_user = invited_result.scalar_one_or_none()
-    if not invited_user:
-        raise HTTPException(status_code=404, detail="User not found")
-
-    # Check if already a member
-    existing = await db.execute(
-        select(ProjectMember).where(
-            ProjectMember.project_id == project_id,
-            ProjectMember.user_id == invited_user.id,
-        )
-    )
-    if existing.scalar_one_or_none():
-        raise HTTPException(status_code=400, detail="User already a member")
-
-    # Add as member (nda not signed yet)
-    member = ProjectMember(
-        project_id=project_id, user_id=invited_user.id, role=data.role
-    )
-    db.add(member)
-
     # Generate QR token
     token_value = secrets.token_urlsafe(32)
     qr_token = QRToken(
         token=token_value,
         project_id=project_id,
-        user_id=invited_user.id,
+        user_id=None,
+        role=data.role,
         expires_at=datetime.now(timezone.utc).replace(tzinfo=None) + timedelta(hours=24),
     )
     db.add(qr_token)
     await db.commit()
 
-    return {"token": token_value, "message": f"Invite sent to {data.email}"}
+    return {"token": token_value, "message": "Invite token generated"}
+
+
+@router.post(
+    "/{project_id}/invite/claim",
+    summary="Принять приглашение",
+    description="Привязывает QR-токен приглашения к текущему пользователю и добавляет его в проект как участника.",
+)
+async def claim_invite(
+    project_id: int,
+    data: InviteClaimRequest,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    token = data.token
+
+    qr_result = await db.execute(select(QRToken).where(QRToken.token == token))
+    qr = qr_result.scalar_one_or_none()
+
+    if not qr:
+        raise HTTPException(status_code=404, detail="Invalid token")
+    if qr.project_id != project_id:
+        raise HTTPException(status_code=400, detail="Token does not match project")
+    if qr.used:
+        raise HTTPException(status_code=400, detail="Token already used")
+
+    expires = qr.expires_at if qr.expires_at.tzinfo else qr.expires_at.replace(tzinfo=timezone.utc)
+    if expires < datetime.now(timezone.utc):
+        raise HTTPException(status_code=400, detail="Token expired")
+
+    if qr.user_id is not None and qr.user_id != user.id:
+        raise HTTPException(status_code=403, detail="Token already claimed by another user")
+
+    existing = await db.execute(
+        select(ProjectMember).where(
+            ProjectMember.project_id == project_id,
+            ProjectMember.user_id == user.id,
+        )
+    )
+    if existing.scalar_one_or_none():
+        raise HTTPException(status_code=400, detail="User already a member")
+
+    qr.user_id = user.id
+    member = ProjectMember(
+        project_id=project_id,
+        user_id=user.id,
+        role=qr.role,
+    )
+    db.add(member)
+    await db.commit()
+
+    return {
+        "message": "Invite claimed successfully",
+        "project_id": project_id,
+        "user_id": user.id,
+    }
 
 
 @router.get(

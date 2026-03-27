@@ -1,6 +1,8 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
-const BASE_URL = __DEV__ ? "http://192.168.10.8:8000" : "http://192.168.10.8:8000";
+const BASE_URL = __DEV__
+  ? "http://192.168.8.76:8000"
+  : "http://192.168.8.76:8000";
 
 const TOKEN_KEY = "auth_token";
 
@@ -129,12 +131,21 @@ export async function getMembers(projectId: number): Promise<Member[]> {
 
 export async function inviteMember(
   projectId: number,
-  email: string,
   role?: string,
 ): Promise<{ token: string; message: string }> {
   return request(`/projects/${projectId}/invite`, {
     method: "POST",
-    body: JSON.stringify({ email, role }),
+    body: JSON.stringify({ role }),
+  });
+}
+
+export async function claimInvite(
+  projectId: number,
+  token: string,
+): Promise<{ message: string; project_id: number; user_id: number }> {
+  return request(`/projects/${projectId}/invite/claim`, {
+    method: "POST",
+    body: JSON.stringify({ token }),
   });
 }
 
@@ -264,7 +275,11 @@ export async function createReport(
 export async function getNdaAccess(
   projectId: number,
   token: string,
-): Promise<{ project_name: string; nda_ipfs_hash: string; user_id: number }> {
+): Promise<{
+  project_name: string;
+  nda_ipfs_hash: string;
+  user_id: number | null;
+}> {
   return request(`/projects/${projectId}/nda-access?token=${token}`);
 }
 

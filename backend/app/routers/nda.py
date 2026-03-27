@@ -58,6 +58,8 @@ async def sign_nda(
     db: AsyncSession = Depends(get_db),
 ):
     qr = await _validate_token(db, data.token, project_id)
+    if qr.user_id is None:
+        raise HTTPException(status_code=400, detail="Invite is not claimed yet")
 
     project = await db.get(Project, project_id)
     if not project:

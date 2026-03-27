@@ -63,7 +63,7 @@ async def test_get_project_not_member(client: AsyncClient, test_project, second_
 async def test_invite_user(client: AsyncClient, auth_headers, test_project, second_user):
     resp = await client.post(
         f"/projects/{test_project.id}/invite",
-        json={"email": "second@example.com", "role": "member"},
+        json={"role": "member"},
         headers=auth_headers,
     )
     assert resp.status_code == 200
@@ -72,13 +72,46 @@ async def test_invite_user(client: AsyncClient, auth_headers, test_project, seco
 
 
 @pytest.mark.asyncio
-async def test_invite_nonexistent_user(client: AsyncClient, auth_headers, test_project):
-    resp = await client.post(
+async def test_claim_invite(client: AsyncClient, auth_headers, test_project):
+    invite_resp = await client.post(
         f"/projects/{test_project.id}/invite",
-        json={"email": "nobody@example.com"},
+        json={"role": "member"},
         headers=auth_headers,
     )
-    assert resp.status_code == 404
+    assert invite_resp.status_code == 200
+    token = invite_resp.json()["token"]
+
+    resp = await client.post(
+        f"/projects/{test_project.id}/invite/claim",
+        json={"token": token},
+        headers=auth_headers,
+    )
+    assert resp.status_code == 400
+    assert "already a member" in resp.json()["detail"]
+
+
+@pytest.mark.asyncio
+async def test_claim_invite_for_second_user(
+    client: AsyncClient, auth_headers, test_project, second_user
+):
+    invite_resp = await client.post(
+        f"/projects/{test_project.id}/invite",
+        json={"role": "member"},
+        headers=auth_headers,
+    )
+    assert invite_resp.status_code == 200
+    token = invite_resp.json()["token"]
+
+    from app.services.auth import create_access_token
+    second_headers = {"Authorization": f"Bearer {create_access_token({'sub': second_user.id})}"}
+
+    resp = await client.post(
+        f"/projects/{test_project.id}/invite/claim",
+        json={"token": token},
+        headers=second_headers,
+    )
+    assert resp.status_code == 200
+    assert resp.json()["user_id"] == second_user.id
 
 
 @pytest.mark.asyncio
@@ -86,8 +119,8 @@ async def test_invite_already_member(
     client: AsyncClient, auth_headers, test_project, invited_member
 ):
     resp = await client.post(
-        f"/projects/{test_project.id}/invite",
-        json={"email": "second@example.com"},
+        f"/projects/{test_project.id}/invite/claim",
+        json={"token": "test-qr-token-123"},
         headers=auth_headers,
     )
     assert resp.status_code == 400

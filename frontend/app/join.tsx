@@ -1,5 +1,5 @@
 import ArrowLeftIcon from "@/assets/icons/ArrowLeftIcon";
-import { getNdaAccess } from "@/services/api";
+import { claimInvite, getNdaAccess } from "@/services/api";
 import {
   BarcodeScanningResult,
   CameraView,
@@ -27,14 +27,21 @@ export default function Join() {
 
     try {
       const parsed = JSON.parse(data);
-      if (parsed.type === "project-invite" && parsed.token && parsed.projectId) {
+      if (
+        parsed.type === "project-invite" &&
+        parsed.token &&
+        parsed.projectId
+      ) {
         setScannedData({
           projectId: parsed.projectId,
           projectName: parsed.projectName || "Project",
           token: parsed.token,
         });
       } else {
-        Alert.alert("Invalid QR", "This QR code is not a valid project invite.");
+        Alert.alert(
+          "Invalid QR",
+          "This QR code is not a valid project invite.",
+        );
         setScanned(false);
       }
     } catch {
@@ -46,6 +53,7 @@ export default function Join() {
   const handleContinue = async () => {
     if (!scannedData) return;
     try {
+      await claimInvite(Number(scannedData.projectId), scannedData.token);
       const nda = await getNdaAccess(
         Number(scannedData.projectId),
         scannedData.token,
@@ -62,7 +70,18 @@ export default function Join() {
         ],
       );
     } catch (e: any) {
-      Alert.alert("Error", e.message || "Failed to access project invite");
+      const message = e?.message || "Failed to access project invite";
+      if (
+        message.includes("401") ||
+        message.toLowerCase().includes("not authenticated")
+      ) {
+        Alert.alert(
+          "Login Required",
+          "Please log in or sign up first, then scan the invite QR again.",
+        );
+      } else {
+        Alert.alert("Error", message);
+      }
       setScanned(false);
       setScannedData(null);
     }
