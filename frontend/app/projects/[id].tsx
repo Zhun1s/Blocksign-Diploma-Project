@@ -1,7 +1,9 @@
 import AddPlusIcon from "@/assets/icons/AddPlusIcon";
 import ArrowLeftIcon from "@/assets/icons/ArrowLeftIcon";
+import ChevronRightIcon from "@/assets/icons/ChevronRightIcon";
+import DocumentIcon from "@/assets/icons/DocumentIcon";
+import PolygonIcon from "@/assets/icons/PolygonIcon";
 import NewTaskIcon from "@/assets/icons/NewTaskIcon";
-import FileBlankIcon from "@/assets/icons/FileBlankIcon";
 import { DocumentList } from "@/components/documentlist";
 import { ParticipantList } from "@/components/participantlist";
 import { TaskItem } from "@/components/taskitem";
@@ -24,6 +26,8 @@ import {
   signNda,
   inviteMember,
   getNdaAccess,
+  verifyNda,
+  type NdaVerification,
   type FileItem,
   type Member,
   type Report,
@@ -103,7 +107,7 @@ function timeAgo(dateStr: string): string {
 export default function ProjectDetails() {
   const { id, name } = useLocalSearchParams<{ id?: string; name?: string }>();
   const projectId = Number(id);
-  const { colors } = useTheme();
+  const { colors, isDark } = useTheme();
   const { t } = useLanguage();
   const { user } = useAuth();
   const [projectName, setProjectName] = useState(name || "Project");
@@ -122,6 +126,7 @@ export default function ProjectDetails() {
   const [showNdaSign, setShowNdaSign] = useState(false);
   const [ndaToken, setNdaToken] = useState<string | null>(null);
   const [signingNda, setSigningNda] = useState(false);
+  const [ndaVerification, setNdaVerification] = useState<NdaVerification | null>(null);
 
   // Report form
   const [showReportForm, setShowReportForm] = useState(false);
@@ -151,12 +156,18 @@ export default function ProjectDetails() {
       } catch {
         // User may not have NDA signed yet
       }
+
+      // Load blockchain verification for current user
+      if (user?.id) {
+        const v = await verifyNda(projectId, user.id);
+        setNdaVerification(v);
+      }
     } catch (e) {
       console.warn("Failed to load project", e);
     } finally {
       setLoading(false);
     }
-  }, [projectId]);
+  }, [projectId, user?.id]);
 
   useFocusEffect(
     useCallback(() => {
@@ -345,10 +356,11 @@ export default function ProjectDetails() {
             onChange={(event) => {
               setSelectedIndex(event.nativeEvent.selectedSegmentIndex);
             }}
-            fontStyle={[styles.segmentedControlFont, { color: colors.textSecondary }]}
-            activeFontStyle={styles.segmentedControlActiveFont}
-            style={[styles.segmentedControl, { borderRadius: 0 }]}
-            tabStyle={{ borderRadius: 1 }}
+            fontStyle={{ fontSize: 15, fontWeight: "600", color: colors.textSecondary }}
+            activeFontStyle={{ fontSize: 15, fontWeight: "700", color: colors.text }}
+            backgroundColor={isDark ? "#2A2A2A" : "#E8E8E8"}
+            tintColor={colors.card}
+            style={styles.segmentedControl}
           />
           {/* ── NDA Banner ── */}
           {!ndaSigned && currentMember && (
@@ -370,12 +382,58 @@ export default function ProjectDetails() {
             </View>
           )}
 
+          {/* ── Blockchain Verification Banner ── */}
+          {ndaSigned && currentMember && (
+            <View style={[styles.blockchainBanner, isDark && styles.blockchainBannerDark]}>
+              <View style={styles.blockchainHeader}>
+                <PolygonIcon size={28} />
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.blockchainTitle}>
+                    {ndaVerification ? "NDA Verified on Polygon" : "NDA Signed"}
+                  </Text>
+                  <Text style={styles.blockchainSubtitle}>
+                    {ndaVerification ? "Amoy Testnet" : "Pending blockchain confirmation"}
+                  </Text>
+                </View>
+                <View style={[styles.verifiedBadge, !ndaVerification && { backgroundColor: "#9B7FD4" }]}>
+                  <Text style={styles.verifiedText}>
+                    {ndaVerification ? "On-chain" : "Signed"}
+                  </Text>
+                </View>
+              </View>
+
+              {ndaVerification && (
+                <View style={styles.blockchainDetails}>
+                  <View style={styles.blockchainRow}>
+                    <Text style={styles.blockchainLabel}>Hash</Text>
+                    <Text style={styles.blockchainValue} numberOfLines={1}>
+                      {ndaVerification.nda_hash.slice(0, 20)}...
+                    </Text>
+                  </View>
+                  <View style={styles.blockchainRow}>
+                    <Text style={styles.blockchainLabel}>Signed</Text>
+                    <Text style={styles.blockchainValue}>
+                      {new Date(ndaVerification.timestamp * 1000).toLocaleDateString("en-US", {
+                        day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit",
+                      })}
+                    </Text>
+                  </View>
+                  <Pressable
+                    onPress={() => Linking.openURL(`https://amoy.polygonscan.com/address/0x39b7f4E059857db8326E754c9a53716cD8E5959F`)}
+                  >
+                    <Text style={styles.blockchainLink}>View on Polygonscan →</Text>
+                  </Pressable>
+                </View>
+              )}
+            </View>
+          )}
+
           {/* ── General Tab ── */}
           {selectedIndex === 0 && (
             <View>
               <View style={[styles.descriptionContainer, { backgroundColor: colors.card }]}>
                 <View style={styles.headerRow}>
-                  <ArrowLeftIcon color={colors.text} />
+                  <DocumentIcon color={colors.text} size={20} />
                   <Text style={{ fontSize: 16, fontWeight: "600", color: colors.text }}>
                     {t("projectDescription")}
                   </Text>
@@ -477,24 +535,40 @@ export default function ProjectDetails() {
               )}
 
               {reports.length > 0 && (
-                <View style={[styles.reportsContainer, { backgroundColor: colors.card }]}>
-                  {reports.map((r) => (
-                    <View key={r.id} style={[styles.reportItem, { borderBottomColor: colors.border }]}>
-                      <Text style={{ fontWeight: "600", fontSize: 15, color: colors.text }}>
-                        {r.title}
-                      </Text>
-                      <Text
-                        style={{ color: colors.textTertiary, fontSize: 13, marginTop: 4 }}
+                <View style={{ gap: 10, marginTop: 12, marginBottom: 24 }}>
+                  {reports.map((r) => {
+                    const author = members.find((m) => m.userId === r.authorId);
+                    return (
+                      <Pressable
+                        key={r.id}
+                        onPress={() =>
+                          router.push({
+                            pathname: "/projects/[id]/report/[reportId]",
+                            params: { id: id!, reportId: String(r.id) },
+                          })
+                        }
+                        style={[styles.reportCard, { backgroundColor: colors.card }]}
                       >
-                        {r.content}
-                      </Text>
-                      <Text
-                        style={{ color: colors.textSecondary, fontSize: 11, marginTop: 4 }}
-                      >
-                        {new Date(r.createdAt).toLocaleDateString()}
-                      </Text>
-                    </View>
-                  ))}
+                        <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
+                          <Text style={{ fontWeight: "700", fontSize: 16, color: colors.text, flex: 1 }} numberOfLines={1}>
+                            {r.title}
+                          </Text>
+                          <ChevronRightIcon color={colors.textTertiary} />
+                        </View>
+                        <Text style={{ color: colors.textTertiary, fontSize: 13, marginTop: 6 }} numberOfLines={2}>
+                          {r.content}
+                        </Text>
+                        <View style={{ flexDirection: "row", justifyContent: "space-between", marginTop: 8 }}>
+                          <Text style={{ color: colors.textSecondary, fontSize: 12 }}>
+                            {author?.fullName || "Unknown"}
+                          </Text>
+                          <Text style={{ color: colors.textSecondary, fontSize: 12 }}>
+                            {new Date(r.createdAt).toLocaleDateString("en-US", { day: "numeric", month: "short" })}
+                          </Text>
+                        </View>
+                      </Pressable>
+                    );
+                  })}
                 </View>
               )}
             </View>
@@ -669,9 +743,7 @@ const styles = StyleSheet.create({
   container: { flex: 1, marginTop: 100, marginHorizontal: 16 },
   headerRow: { flexDirection: "row", alignItems: "center", gap: 8 },
   projectName: { fontSize: 32, fontWeight: "bold" },
-  segmentedControl: { height: 48, marginTop: 24, width: "100%" },
-  segmentedControlFont: { fontSize: 16, fontWeight: "700" },
-  segmentedControlActiveFont: { fontSize: 16, fontWeight: "700" },
+  segmentedControl: { height: 44, marginTop: 20, width: "100%", borderRadius: 10 },
   descriptionContainer: {
     width: "100%",
     borderRadius: 16,
@@ -750,16 +822,77 @@ const styles = StyleSheet.create({
     alignItems: "center",
     paddingVertical: 12,
   },
-  reportsContainer: {
-    marginTop: 12,
+  reportCard: {
     borderRadius: 16,
-    padding: 16,
-    gap: 12,
-    marginBottom: 24,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
   },
-  reportItem: {
-    borderBottomWidth: 0.5,
-    paddingBottom: 12,
+  blockchainBanner: {
+    marginTop: 16,
+    borderRadius: 16,
+    backgroundColor: "#F3EEFF",
+    borderWidth: 1,
+    borderColor: "#7B3FE4" + "40",
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+  },
+  blockchainBannerDark: {
+    backgroundColor: "#1A1030",
+    borderColor: "#7B3FE4" + "60",
+  },
+  blockchainHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+  },
+  blockchainTitle: {
+    fontSize: 15,
+    fontWeight: "700",
+    color: "#7B3FE4",
+  },
+  blockchainSubtitle: {
+    fontSize: 11,
+    fontWeight: "500",
+    color: "#9B7FD4",
+    marginTop: 1,
+  },
+  verifiedBadge: {
+    backgroundColor: "#7B3FE4",
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 8,
+  },
+  verifiedText: {
+    fontSize: 11,
+    fontWeight: "700",
+    color: "#FFFFFF",
+  },
+  blockchainDetails: {
+    marginTop: 12,
+    gap: 6,
+  },
+  blockchainRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+  blockchainLabel: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: "#9B7FD4",
+  },
+  blockchainValue: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: "#7B3FE4",
+    maxWidth: "60%",
+  },
+  blockchainLink: {
+    marginTop: 10,
+    fontSize: 13,
+    fontWeight: "600",
+    color: "#7B3FE4",
+    textAlign: "center",
   },
   ndaBanner: {
     marginTop: 16,

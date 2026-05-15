@@ -77,12 +77,16 @@ export default function AddParticipantScreen() {
             <ActivityIndicator style={{ marginTop: 48 }} size="large" />
           ) : (
             <View style={[styles.qrContainer, { backgroundColor: colors.card }]}>
-              <QRCode
-                value={qrPayload}
-                size={220}
-                backgroundColor={colors.card}
-                color={colors.text}
-              />
+              {qrPayload ? (
+                <QRCode
+                  value={qrPayload}
+                  size={220}
+                  backgroundColor={colors.card}
+                  color={colors.text}
+                />
+              ) : (
+                <ActivityIndicator size="large" />
+              )}
               <Text style={[styles.inviteLabel, { color: colors.textSecondary }]}>
                 {t("inviteCode")}
               </Text>

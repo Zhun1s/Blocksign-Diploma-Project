@@ -1,8 +1,8 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
 const BASE_URL = __DEV__
-  ? "http://192.168.10.8:8000"
-  : "http://192.168.10.8:8000";
+  ? "http://10.202.4.121:8000"
+  : "http://10.202.4.121:8000";
 
 const TOKEN_KEY = "auth_token";
 
@@ -256,6 +256,24 @@ export async function deleteFile(
 
 // ── Reports ──
 
+export type ReportComment = {
+  id: number;
+  reportId: number;
+  authorId: number;
+  text: string;
+  createdAt: string;
+};
+
+export type ReportAttachment = {
+  id: number;
+  reportId: number;
+  fileName: string;
+  ipfsHash: string;
+  fileSize: number | null;
+  uploadedBy: number;
+  createdAt: string;
+};
+
 export type Report = {
   id: number;
   projectId: number;
@@ -265,8 +283,17 @@ export type Report = {
   createdAt: string;
 };
 
+export type ReportDetail = Report & {
+  comments: ReportComment[];
+  attachments: ReportAttachment[];
+};
+
 export async function getReports(projectId: number): Promise<Report[]> {
   return request(`/projects/${projectId}/reports`);
+}
+
+export async function getReport(projectId: number, reportId: number): Promise<ReportDetail> {
+  return request(`/projects/${projectId}/reports/${reportId}`);
 }
 
 export async function createReport(
@@ -276,6 +303,30 @@ export async function createReport(
   return request(`/projects/${projectId}/reports`, {
     method: "POST",
     body: JSON.stringify(data),
+  });
+}
+
+export async function addReportComment(
+  projectId: number,
+  reportId: number,
+  text: string,
+): Promise<ReportComment> {
+  return request(`/projects/${projectId}/reports/${reportId}/comments`, {
+    method: "POST",
+    body: JSON.stringify({ text }),
+  });
+}
+
+export async function addReportAttachment(
+  projectId: number,
+  reportId: number,
+  file: { uri: string; name: string; type: string },
+): Promise<ReportAttachment> {
+  const formData = new FormData();
+  formData.append("file", file as any);
+  return request(`/projects/${projectId}/reports/${reportId}/attachments`, {
+    method: "POST",
+    body: formData,
   });
 }
 
@@ -309,4 +360,21 @@ export async function signNda(
       signature_image_base64: signatureBase64,
     }),
   });
+}
+
+export type NdaVerification = {
+  nda_hash: string;
+  timestamp: number;
+  user_id: number;
+};
+
+export async function verifyNda(
+  projectId: number,
+  userId: number,
+): Promise<NdaVerification | null> {
+  try {
+    return await request(`/projects/${projectId}/nda-verify?user_id=${userId}`);
+  } catch {
+    return null;
+  }
 }

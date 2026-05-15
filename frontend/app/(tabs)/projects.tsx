@@ -1,4 +1,5 @@
-import ArrowLeftIcon from "@/assets/icons/ArrowLeftIcon";
+import FolderPlusIcon from "@/assets/icons/FolderPlusIcon";
+import QrCodeIcon from "@/assets/icons/QrCodeIcon";
 import ProjectsbyOwner from "@/components/projectsrow";
 import { useAuth } from "@/contexts/AuthContext";
 import { useLanguage } from "@/contexts/LanguageContext";
@@ -133,7 +134,7 @@ export default function Projects() {
                   { borderBottomWidth: 0.5, borderBottomColor: colors.border },
                 ]}
               >
-                <ArrowLeftIcon color={colors.text} />
+                <FolderPlusIcon color={colors.text} size={20} />
                 <Text style={[styles.menuItemText, { color: colors.text }]}>{t("createProject")}</Text>
               </Pressable>
               <Pressable
@@ -143,7 +144,7 @@ export default function Projects() {
                 }}
                 style={styles.menuItem}
               >
-                <ArrowLeftIcon color={colors.text} />
+                <QrCodeIcon color={colors.text} size={20} />
                 <Text style={[styles.menuItemText, { color: colors.text }]}>{t("joinProject")}</Text>
               </Pressable>
             </View>

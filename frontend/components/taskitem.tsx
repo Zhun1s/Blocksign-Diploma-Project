@@ -31,6 +31,40 @@ const STATUS_KEY: Record<string, string> = {
   Missed: "missed",
 };
 
+function parseDeadline(raw: string): { day: string; month: string; isOverdue: boolean; isToday: boolean; isTomorrow: boolean; label: string } {
+  // Handle pre-formatted strings like "Today", "Tomorrow", "Apr 1"
+  const lower = raw.toLowerCase();
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const tomorrow = new Date(today);
+  tomorrow.setDate(tomorrow.getDate() + 1);
+
+  if (lower === "today") {
+    return { day: String(today.getDate()), month: today.toLocaleDateString("en-US", { month: "short" }), isOverdue: false, isToday: true, isTomorrow: false, label: "Today" };
+  }
+  if (lower === "tomorrow") {
+    return { day: String(tomorrow.getDate()), month: tomorrow.toLocaleDateString("en-US", { month: "short" }), isOverdue: false, isToday: false, isTomorrow: true, label: "Tomorrow" };
+  }
+
+  // Try parsing as date
+  const d = new Date(raw);
+  if (!isNaN(d.getTime())) {
+    d.setHours(0, 0, 0, 0);
+    const isOverdue = d < today;
+    const isToday = d.getTime() === today.getTime();
+    const isTomorrow = d.getTime() === tomorrow.getTime();
+    const day = String(d.getDate());
+    const month = d.toLocaleDateString("en-US", { month: "short" });
+    let label = `${month} ${day}`;
+    if (isToday) label = "Today";
+    else if (isTomorrow) label = "Tomorrow";
+    return { day, month, isOverdue, isToday, isTomorrow, label };
+  }
+
+  // Fallback — just display raw
+  return { day: "", month: raw, isOverdue: false, isToday: false, isTomorrow: false, label: raw };
+}
+
 export function TaskItem({
   task,
   onPress,
@@ -46,6 +80,13 @@ export function TaskItem({
   const statusLabel = STATUS_KEY[task.status || ""]
     ? t(STATUS_KEY[task.status || ""])
     : task.status;
+
+  const deadline = task.deadline ? parseDeadline(task.deadline) : null;
+  const deadlineColor = deadline?.isOverdue
+    ? "#FF3B30"
+    : deadline?.isToday
+      ? "#FF8223"
+      : "#4FBE79";
 
   return (
     <View style={{ paddingVertical: 4 }}>
@@ -69,17 +110,28 @@ export function TaskItem({
             </Text>
           )}
 
+          {/* Deadline block */}
+          {deadline && (
+            <View style={[styles.deadlineBlock, { backgroundColor: isDark ? deadlineColor + "25" : deadlineColor + "12" }]}>
+              <CalendarIcon size={14} color={deadlineColor} />
+              <Text style={[styles.deadlineLabel, { color: deadlineColor }]}>
+                {deadline.label}
+              </Text>
+              {deadline.isOverdue && (
+                <View style={[styles.overdueTag, { backgroundColor: deadlineColor }]}>
+                  <Text style={styles.overdueText}>Overdue</Text>
+                </View>
+              )}
+            </View>
+          )}
+
           <View style={styles.badgesRow}>
             {/* Status badge */}
             {task.status && (
               <View
                 style={[
                   styles.badge,
-                  {
-                    backgroundColor: isDark
-                      ? statusColor + "30"
-                      : statusColor + "18",
-                  },
+                  { backgroundColor: isDark ? statusColor + "30" : statusColor + "18" },
                 ]}
               >
                 <View style={[styles.dot, { backgroundColor: statusColor }]} />
@@ -89,27 +141,11 @@ export function TaskItem({
               </View>
             )}
 
-            {task.deadline && (
-              <View
-                style={[
-                  styles.badge,
-                  {
-                    backgroundColor: isDark ? "#1A3A25" : "#EDFAF1",
-                  },
-                ]}
-              >
-                <CalendarIcon size={14} color="#4FBE79" />
-                <Text style={styles.deadlineText}>{task.deadline}</Text>
-              </View>
-            )}
-
             {task.important && (
               <View
                 style={[
                   styles.badge,
-                  {
-                    backgroundColor: isDark ? "#3A2A15" : "#FFF4E7",
-                  },
+                  { backgroundColor: isDark ? "#3A2A15" : "#FFF4E7" },
                 ]}
               >
                 <FlagIcon size={14} color="#FF8223" />
@@ -154,12 +190,35 @@ const styles = StyleSheet.create({
   desc: {
     fontSize: 14,
   },
+  deadlineBlock: {
+    flexDirection: "row",
+    alignItems: "center",
+    alignSelf: "flex-start",
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 10,
+    gap: 6,
+  },
+  deadlineLabel: {
+    fontSize: 13,
+    fontWeight: "700",
+  },
+  overdueTag: {
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 6,
+    marginLeft: 2,
+  },
+  overdueText: {
+    fontSize: 10,
+    fontWeight: "700",
+    color: "#FFF",
+  },
   badgesRow: {
     flexDirection: "row",
     flexWrap: "wrap",
     alignItems: "center",
     gap: 6,
-    marginTop: 4,
   },
   badge: {
     flexDirection: "row",
@@ -178,6 +237,5 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: "600",
   },
-  deadlineText: { fontSize: 12, fontWeight: "600", color: "#4FBE79" },
   importantText: { fontSize: 12, fontWeight: "600", color: "#FF8223" },
 });

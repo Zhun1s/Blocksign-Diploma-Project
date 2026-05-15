@@ -98,8 +98,8 @@ async def store_nda_hash_on_chain(project_id: int, user_id: int, nda_hash: str) 
         {
             "from": account.address,
             "nonce": nonce,
-            "gas": 200_000,
-            "gasPrice": w3.eth.gas_price,
+            "gas": 100_000,
+            "gasPrice": min(w3.eth.gas_price, w3.to_wei(50, "gwei")),
             "chainId": chain_id,
         }
     )

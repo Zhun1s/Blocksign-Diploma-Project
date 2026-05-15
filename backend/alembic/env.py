@@ -12,7 +12,7 @@ from app.database import Base
 from app.models.user import User  # noqa: F401
 from app.models.project import Project, ProjectMember  # noqa: F401
 from app.models.file import File  # noqa: F401
-from app.models.report import Report  # noqa: F401
+from app.models.report import Report, ReportComment, ReportAttachment  # noqa: F401
 from app.models.qr_token import QRToken  # noqa: F401
 from app.models.task import Task  # noqa: F401
 

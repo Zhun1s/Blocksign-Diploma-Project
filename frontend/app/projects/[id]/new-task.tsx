@@ -10,6 +10,7 @@ import { useState } from "react";
 import {
   ActivityIndicator,
   Alert,
+  KeyboardAvoidingView,
   Platform,
   Pressable,
   ScrollView,
@@ -23,12 +24,13 @@ export default function NewTaskScreen() {
   const { id, name } = useLocalSearchParams<{ id?: string; name?: string }>();
   const projectId = Number(id);
   const projectName = name ? `${name}` : "Project";
-  const { colors } = useTheme();
+  const { colors, isDark } = useTheme();
   const { t } = useLanguage();
 
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [deadlineDate, setDeadlineDate] = useState<Date | null>(null);
+  const [tempDate, setTempDate] = useState<Date>(new Date());
   const [showDeadlinePicker, setShowDeadlinePicker] = useState(false);
   const [important, setImportant] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -42,16 +44,31 @@ export default function NewTaskScreen() {
     : "";
 
   const onDeadlineChange = (
-    event: DateTimePickerEvent,
+    _event: DateTimePickerEvent,
     selectedDate?: Date,
   ) => {
     if (Platform.OS === "android") {
+      // Android: picker auto-closes, set directly
       setShowDeadlinePicker(false);
+      if (selectedDate) {
+        setDeadlineDate(selectedDate);
+      }
+    } else {
+      // iOS: inline picker, update temp date
+      if (selectedDate) {
+        setTempDate(selectedDate);
+      }
     }
+  };
 
-    if (event.type === "set" && selectedDate) {
-      setDeadlineDate(selectedDate);
-    }
+  const confirmDate = () => {
+    setDeadlineDate(tempDate);
+    setShowDeadlinePicker(false);
+  };
+
+  const clearDate = () => {
+    setDeadlineDate(null);
+    setShowDeadlinePicker(false);
   };
 
   const onCreateTask = async () => {
@@ -79,124 +96,217 @@ export default function NewTaskScreen() {
   return (
     <>
       <Stack.Screen options={{ headerShown: false }} />
-      <ScrollView
-        showsVerticalScrollIndicator={false}
-        style={[styles.background, { backgroundColor: colors.background }]}
-        contentContainerStyle={styles.scrollContent}
+      <KeyboardAvoidingView
+        style={{ flex: 1, backgroundColor: colors.background }}
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
       >
-        <View style={styles.container}>
-          <View style={styles.headerRow}>
-            <Pressable onPress={() => router.back()}>
-              <ArrowLeftIcon color={colors.text} />
-            </Pressable>
-            <Text style={[styles.pageTitle, { color: colors.text }]}>{t("createNewTask")}</Text>
-          </View>
-
-          <View style={[styles.card, { backgroundColor: colors.card }]}>
-            <Text style={[styles.label, { color: colors.text }]}>{t("project")}</Text>
-            <Text style={[styles.projectName, { color: colors.text }]}>{projectName}</Text>
-          </View>
-
-          <View style={[styles.card, { backgroundColor: colors.card }]}>
-            <Text style={[styles.label, { color: colors.text }]}>{t("taskTitle")}</Text>
-            <TextInput
-              value={title}
-              onChangeText={setTitle}
-              placeholder="Enter task title"
-              placeholderTextColor={colors.placeholder}
-              style={[styles.input, { backgroundColor: colors.inputBg, borderColor: colors.border, color: colors.inputText }]}
-            />
-
-            <Text style={[styles.label, styles.sectionSpacing, { color: colors.text }]}>
-              {t("description")}
-            </Text>
-            <TextInput
-              value={description}
-              onChangeText={setDescription}
-              placeholder="Task details"
-              placeholderTextColor={colors.placeholder}
-              style={[styles.input, styles.multilineInput, { backgroundColor: colors.inputBg, borderColor: colors.border, color: colors.inputText }]}
-              multiline
-              textAlignVertical="top"
-            />
-
-            <Text style={[styles.label, styles.sectionSpacing, { color: colors.text }]}>{t("deadline")}</Text>
-            <Pressable
-              onPress={() => setShowDeadlinePicker((prev) => !prev)}
-              style={[styles.input, { backgroundColor: colors.inputBg, borderColor: colors.border }]}
-            >
-              <Text
-                style={deadlineDate ? [styles.inputText, { color: colors.inputText }] : [styles.placeholderText, { color: colors.placeholder }]}
-              >
-                {deadlineDate ? deadlineLabel : t("selectDeadline")}
+        <ScrollView
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={styles.scrollContent}
+          keyboardShouldPersistTaps="handled"
+        >
+          <View style={styles.container}>
+            <View style={styles.headerRow}>
+              <Pressable onPress={() => router.back()}>
+                <ArrowLeftIcon color={colors.text} />
+              </Pressable>
+              <Text style={[styles.pageTitle, { color: colors.text }]}>
+                {t("createNewTask")}
               </Text>
-            </Pressable>
-            {showDeadlinePicker && (
-              <View style={styles.pickerWrap}>
-                <DateTimePicker
-                  value={deadlineDate ?? new Date()}
-                  mode="date"
-                  display={Platform.OS === "ios" ? "inline" : "default"}
-                  onChange={onDeadlineChange}
-                />
-              </View>
-            )}
+            </View>
 
-            <Text style={[styles.label, styles.sectionSpacing, { color: colors.text }]}>
-              {t("importance")}
-            </Text>
-            <View style={styles.priorityRow}>
-              <Pressable
-                onPress={() => setImportant((prev) => !prev)}
+            <View style={[styles.card, { backgroundColor: colors.card }]}>
+              <Text style={[styles.label, { color: colors.text }]}>
+                {t("project")}
+              </Text>
+              <Text style={[styles.projectName, { color: colors.text }]}>
+                {projectName}
+              </Text>
+            </View>
+
+            <View style={[styles.card, { backgroundColor: colors.card }]}>
+              <Text style={[styles.label, { color: colors.text }]}>
+                {t("taskTitle")}
+              </Text>
+              <TextInput
+                value={title}
+                onChangeText={setTitle}
+                placeholder="Enter task title"
+                placeholderTextColor={colors.placeholder}
                 style={[
-                  styles.priorityChip,
-                  { backgroundColor: colors.card, borderColor: colors.border },
-                  important && [styles.priorityChipActive, { backgroundColor: colors.primary, borderColor: colors.primary }],
+                  styles.input,
+                  {
+                    backgroundColor: colors.inputBg,
+                    borderColor: colors.border,
+                    color: colors.inputText,
+                  },
+                ]}
+              />
+
+              <Text
+                style={[styles.label, styles.sectionSpacing, { color: colors.text }]}
+              >
+                {t("description")}
+              </Text>
+              <TextInput
+                value={description}
+                onChangeText={setDescription}
+                placeholder="Task details"
+                placeholderTextColor={colors.placeholder}
+                style={[
+                  styles.input,
+                  styles.multilineInput,
+                  {
+                    backgroundColor: colors.inputBg,
+                    borderColor: colors.border,
+                    color: colors.inputText,
+                  },
+                ]}
+                multiline
+                textAlignVertical="top"
+              />
+
+              <Text
+                style={[styles.label, styles.sectionSpacing, { color: colors.text }]}
+              >
+                {t("deadline")}
+              </Text>
+              <Pressable
+                onPress={() => {
+                  setTempDate(deadlineDate ?? new Date());
+                  setShowDeadlinePicker((prev) => !prev);
+                }}
+                style={[
+                  styles.input,
+                  {
+                    backgroundColor: colors.inputBg,
+                    borderColor: colors.border,
+                  },
                 ]}
               >
                 <Text
-                  style={[
-                    styles.priorityChipText,
-                    { color: colors.textSecondary },
-                    important && [styles.priorityChipTextActive, { color: colors.primaryText }],
-                  ]}
+                  style={
+                    deadlineDate
+                      ? { fontSize: 15, color: colors.inputText }
+                      : { fontSize: 15, color: colors.placeholder }
+                  }
                 >
-                  {t("important")}
+                  {deadlineDate ? deadlineLabel : t("selectDeadline")}
                 </Text>
               </Pressable>
-            </View>
-          </View>
 
-          <Pressable
-            onPress={onCreateTask}
-            disabled={loading}
-            style={({ pressed }) => [
-              styles.createButton,
-              { backgroundColor: colors.primary },
-              pressed && styles.createButtonPressed,
-            ]}
-          >
-            {loading ? (
-              <ActivityIndicator color={colors.primaryText} />
-            ) : (
-              <Text style={[styles.createButtonText, { color: colors.primaryText }]}>{t("createTask")}</Text>
-            )}
-          </Pressable>
-        </View>
-      </ScrollView>
+              {showDeadlinePicker && (
+                <View
+                  style={[
+                    styles.pickerContainer,
+                    {
+                      backgroundColor: isDark ? colors.card : "#FFFFFF",
+                      borderColor: colors.border,
+                    },
+                  ]}
+                >
+                  <DateTimePicker
+                    value={tempDate}
+                    mode="date"
+                    display={Platform.OS === "ios" ? "inline" : "default"}
+                    onChange={onDeadlineChange}
+                    themeVariant={isDark ? "dark" : "light"}
+                  />
+                  {Platform.OS === "ios" && (
+                    <View style={styles.pickerActions}>
+                      <Pressable onPress={clearDate} style={styles.pickerBtn}>
+                        <Text
+                          style={{
+                            fontSize: 14,
+                            fontWeight: "600",
+                            color: "#FF3B30",
+                          }}
+                        >
+                          Clear
+                        </Text>
+                      </Pressable>
+                      <Pressable
+                        onPress={confirmDate}
+                        style={[
+                          styles.pickerBtn,
+                          styles.pickerConfirm,
+                          { backgroundColor: colors.primary },
+                        ]}
+                      >
+                        <Text
+                          style={{
+                            fontSize: 14,
+                            fontWeight: "700",
+                            color: colors.primaryText,
+                          }}
+                        >
+                          Select
+                        </Text>
+                      </Pressable>
+                    </View>
+                  )}
+                </View>
+              )}
+
+              <Text
+                style={[styles.label, styles.sectionSpacing, { color: colors.text }]}
+              >
+                {t("importance")}
+              </Text>
+              <View style={styles.priorityRow}>
+                <Pressable
+                  onPress={() => setImportant((prev) => !prev)}
+                  style={[
+                    styles.priorityChip,
+                    { backgroundColor: colors.card, borderColor: colors.border },
+                    important && {
+                      backgroundColor: colors.primary,
+                      borderColor: colors.primary,
+                    },
+                  ]}
+                >
+                  <Text
+                    style={[
+                      styles.priorityChipText,
+                      { color: colors.textSecondary },
+                      important && { color: colors.primaryText },
+                    ]}
+                  >
+                    {t("important")}
+                  </Text>
+                </Pressable>
+              </View>
+            </View>
+
+            <Pressable
+              onPress={onCreateTask}
+              disabled={loading}
+              style={({ pressed }) => [
+                styles.createButton,
+                { backgroundColor: colors.primary },
+                pressed && { opacity: 0.9 },
+              ]}
+            >
+              {loading ? (
+                <ActivityIndicator color={colors.primaryText} />
+              ) : (
+                <Text style={[styles.createButtonText, { color: colors.primaryText }]}>
+                  {t("createTask")}
+                </Text>
+              )}
+            </Pressable>
+          </View>
+        </ScrollView>
+      </KeyboardAvoidingView>
     </>
   );
 }
 
 const styles = StyleSheet.create({
-  background: {
-    flex: 1,
-  },
   scrollContent: {
-    paddingBottom: 24,
+    paddingBottom: 40,
   },
   container: {
-    fontFamily: "Inter",
     flex: 1,
     marginTop: 100,
     marginHorizontal: 16,
@@ -236,17 +346,30 @@ const styles = StyleSheet.create({
   multilineInput: {
     minHeight: 100,
   },
-  inputText: {
-    fontSize: 15,
-  },
-  placeholderText: {
-    fontSize: 15,
-  },
-  pickerWrap: {
-    marginTop: 8,
-  },
   sectionSpacing: {
     marginTop: 14,
+  },
+  pickerContainer: {
+    marginTop: 10,
+    borderRadius: 16,
+    borderWidth: 1,
+    overflow: "hidden",
+    paddingBottom: 8,
+  },
+  pickerActions: {
+    flexDirection: "row",
+    justifyContent: "flex-end",
+    gap: 10,
+    paddingHorizontal: 12,
+    paddingTop: 4,
+  },
+  pickerBtn: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 10,
+  },
+  pickerConfirm: {
+    borderRadius: 10,
   },
   priorityRow: {
     marginTop: 10,
@@ -259,12 +382,10 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     borderWidth: 1,
   },
-  priorityChipActive: {},
   priorityChipText: {
     fontSize: 13,
     fontWeight: "600",
   },
-  priorityChipTextActive: {},
   createButton: {
     marginTop: 16,
     marginBottom: 8,
@@ -272,9 +393,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     paddingVertical: 14,
-  },
-  createButtonPressed: {
-    opacity: 0.9,
   },
   createButtonText: {
     fontSize: 16,
